@@ -21,9 +21,15 @@ REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
 
 info "Removing LOQ Control Center..."
 
+REAL_UID=$(id -u "$REAL_USER")
+USER_XDG_DIR="/run/user/$REAL_UID"
+USER_DBUS_ADDR="unix:path=$USER_XDG_DIR/bus"
+
 # Stop user service
-sudo -u "$REAL_USER" systemctl --user stop loq-control.service 2>/dev/null || true
-sudo -u "$REAL_USER" systemctl --user disable loq-control.service 2>/dev/null || true
+if [ -d "$USER_XDG_DIR" ]; then
+    sudo -u "$REAL_USER" DBUS_SESSION_BUS_ADDRESS="$USER_DBUS_ADDR" XDG_RUNTIME_DIR="$USER_XDG_DIR" systemctl --user stop loq-control.service 2>/dev/null || true
+    sudo -u "$REAL_USER" DBUS_SESSION_BUS_ADDRESS="$USER_DBUS_ADDR" XDG_RUNTIME_DIR="$USER_XDG_DIR" systemctl --user disable loq-control.service 2>/dev/null || true
+fi
 
 # Remove installed files
 rm -rf "$REAL_HOME/.local/share/loq-control"

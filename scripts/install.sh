@@ -129,9 +129,16 @@ sudo -u "$REAL_USER" mkdir -p "$SYSTEMD_USER_DIR"
 # Substitute %h with real home in the service file
 sed "s|%h|$REAL_HOME|g" "$PROJECT_DIR/systemd/loq-control.service" \
     > "$SYSTEMD_USER_DIR/loq-control.service"
-sudo -u "$REAL_USER" systemctl --user daemon-reload
-sudo -u "$REAL_USER" systemctl --user enable loq-control.service 2>/dev/null || true
-success "Systemd user service installed and enabled."
+
+REAL_UID=$(id -u "$REAL_USER")
+USER_XDG_DIR="/run/user/$REAL_UID"
+USER_DBUS_ADDR="unix:path=$USER_XDG_DIR/bus"
+
+if [ -d "$USER_XDG_DIR" ]; then
+    sudo -u "$REAL_USER" DBUS_SESSION_BUS_ADDRESS="$USER_DBUS_ADDR" XDG_RUNTIME_DIR="$USER_XDG_DIR" systemctl --user daemon-reload 2>/dev/null || true
+    sudo -u "$REAL_USER" DBUS_SESSION_BUS_ADDRESS="$USER_DBUS_ADDR" XDG_RUNTIME_DIR="$USER_XDG_DIR" systemctl --user enable loq-control.service 2>/dev/null || true
+fi
+success "Systemd user service installed."
 
 # ---------------------------------------------------------------------------
 # 6. Desktop file
