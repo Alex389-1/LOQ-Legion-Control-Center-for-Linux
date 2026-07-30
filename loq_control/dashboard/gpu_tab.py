@@ -126,14 +126,6 @@ class _ConfirmDialog(QDialog):
         warn_lbl.setWordWrap(True)
         layout.addWidget(warn_lbl)
 
-        # Reboot checkbox
-        self._reboot_check = QCheckBox(
-            f"{'Reboot' if self._reboot else 'Log out'} automatically after applying"
-        )
-        self._reboot_check.setChecked(True)
-        self._reboot_check.setStyleSheet("color: #a1a1aa; font-size: 12px;")
-        layout.addWidget(self._reboot_check)
-
         # Buttons
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Apply | QDialogButtonBox.StandardButton.Cancel
@@ -163,10 +155,6 @@ class _ConfirmDialog(QDialog):
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
-
-    @property
-    def should_restart(self) -> bool:
-        return self._reboot_check.isChecked()
 
     @property
     def is_reboot(self) -> bool:
@@ -367,7 +355,7 @@ class GpuTab(QWidget):
         self._worker = _GpuSwitchWorker(mode, self._caps, self)
         self._worker.finished_signal.connect(
             lambda success, err: self._on_switch_finished(
-                success, err, mode, progress, dlg.should_restart, dlg.is_reboot
+                success, err, mode, progress, dlg.is_reboot
             )
         )
         self._worker.start()
@@ -378,7 +366,6 @@ class GpuTab(QWidget):
         err: str,
         mode: str,
         progress: QProgressDialog,
-        should_restart: bool,
         is_reboot: bool,
     ) -> None:
         progress.close()
@@ -390,7 +377,15 @@ class GpuTab(QWidget):
             )
             return
 
-        # Success
+        # Ensure disk buffers are flushed
+        import os
+        try:
+            os.sync()
+            os.sync()
+        except Exception:
+            pass
+
+        # Success - update UI & banner
         self._pending = True
         self._update_pending_text(mode)
         self._pending_banner.setVisible(True)
@@ -398,49 +393,13 @@ class GpuTab(QWidget):
             btn.setDisabled(True)
 
         from PySide6.QtWidgets import QMessageBox
-        action_name = "reboot" if is_reboot else "logout"
+        action_name = "restart" if is_reboot else "log out of"
         msg = QMessageBox(self)
-        msg.setWindowTitle("GPU Switch Applied")
-        msg.setText(f"GPU mode switch to '{gs.MODE_LABELS.get(mode, mode)}' was applied successfully!\n\nA {action_name} is required to complete the switch.")
+        msg.setWindowTitle("GPU Mode Switch Applied")
+        msg.setText(
+            f"GPU mode switch to '{gs.MODE_LABELS.get(mode, mode)}' was applied successfully!\n\n"
+            f"Please {action_name} your system manually whenever convenient to apply the new mode."
+        )
         msg.setIcon(QMessageBox.Icon.Information)
-        reboot_btn = msg.addButton(f"{action_name.capitalize()} Now", QMessageBox.ButtonRole.AcceptRole)
-        later_btn = msg.addButton("Restart Later", QMessageBox.ButtonRole.RejectRole)
-        msg.setDefaultButton(reboot_btn)
+        msg.addButton(QMessageBox.StandardButton.Ok)
         msg.exec()
-
-        if msg.clickedButton() == reboot_btn or should_restart:
-            import os, subprocess
-            try:
-                os.sync()
-                os.sync()
-            except Exception:
-                pass
-
-            if is_reboot:
-                cmd = "sync; sleep 0.5; systemctl reboot || loginctl reboot || reboot"
-                subprocess.Popen(
-                    ["nohup", "sh", "-c", cmd],
-                    start_new_session=True,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                QApplication.quit()
-            else:
-                session_id = os.environ.get("XDG_SESSION_ID")
-                if session_id:
-                    cmd = f"sync; sleep 0.5; loginctl terminate-session {session_id}"
-                else:
-                    user = os.environ.get("USER", "")
-                    if user:
-                        cmd = f"sync; sleep 0.5; loginctl terminate-user {user}"
-                    else:
-                        cmd = "sync; sleep 0.5; systemctl restart display-manager"
-                subprocess.Popen(
-                    ["nohup", "sh", "-c", cmd],
-                    start_new_session=True,
-                    stdin=subprocess.DEVNULL,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                QApplication.quit()
