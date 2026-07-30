@@ -90,20 +90,34 @@ class KeyboardController:
     # ------------------------------------------------------------------
 
     def open(self) -> bool:
-        """Open HID device. Returns True on success."""
+        """Open HID LED control device (hidraw0 / Interface 0). Returns True on success."""
         try:
             import hid
+            devices = hid.enumerate(self._vid, self._pid)
+            target_path = None
+            for d in devices:
+                # Target hidraw0 / Interface 0 (which accepts 65-byte feature & output reports)
+                if d.get("interface_number") == 0 or b"hidraw0" in d.get("path", b""):
+                    target_path = d.get("path")
+                    break
+            if target_path is None and devices:
+                target_path = devices[0].get("path")
+
             if hasattr(hid, "Device"):
-                self._device = hid.Device(self._vid, self._pid)
+                self._device = hid.Device(path=target_path) if target_path else hid.Device(self._vid, self._pid)
             elif hasattr(hid, "device"):
                 self._device = hid.device()
-                self._device.open(self._vid, self._pid)
+                if target_path:
+                    self._device.open_path(target_path)
+                else:
+                    self._device.open(self._vid, self._pid)
                 if hasattr(self._device, "set_nonblocking"):
                     self._device.set_nonblocking(1)
             else:
                 raise AttributeError("Module 'hid' has no Device or device class")
             self._available = True
-            log.info("ITE keyboard opened: VID=%04x PID=%04x", self._vid, self._pid)
+            log.info("ITE keyboard LED device opened: VID=%04x PID=%04x path=%s",
+                     self._vid, self._pid, target_path)
             return True
         except ImportError:
             log.error("'hid' module not installed. Run: pip install hid")
@@ -154,93 +168,96 @@ class KeyboardController:
         effect: Effect = Effect.STATIC,
         speed: int = DEFAULT_SPEED,
     ) -> bool:
-        """Set each zone color, brightness (0-100%), and effect."""
-        ok = True
-        for zone, color in enumerate(colors[:NUM_ZONES]):
-            ok = self._send_zone(
-                zone, effect, color.r, color.g, color.b,
-                speed=speed, brightness_pct=brightness_pct
-            ) and ok
-        return self._commit() and ok
+        """Set 4-zone colors using Lenovo ITE 0x16 packet protocol."""
+        return self._send_lenovo_packet(
+            colors=colors,
+            effect=effect,
+            speed=speed,
+            brightness_pct=brightness_pct,
+        )
 
     def set_wave(self, effect: Effect = Effect.WAVE, speed: int = DEFAULT_SPEED, brightness_pct: int = 100) -> bool:
-        """Set wave / color shift effect (all zones)."""
-        ok = True
-        for zone in range(NUM_ZONES):
-            ok = self._send_zone(
-                zone, effect, 0, 0, 0,
-                speed=speed, brightness_pct=brightness_pct
-            ) and ok
-        return self._commit() and ok
+        """Set wave or color shift effect."""
+        return self._send_lenovo_packet(
+            colors=[ZoneColor(0, 0, 0)] * NUM_ZONES,
+            effect=effect,
+            speed=speed,
+            brightness_pct=brightness_pct,
+            direction="ltr",
+        )
 
     def set_off(self) -> bool:
         """Turn off all keyboard lighting."""
-        ok = True
-        for zone in range(NUM_ZONES):
-            ok = self._send_zone(zone, Effect.OFF, 0, 0, 0, brightness_pct=0) and ok
-        return self._commit() and ok
+        return self._send_lenovo_packet(
+            colors=[ZoneColor(0, 0, 0)] * NUM_ZONES,
+            effect=Effect.OFF,
+        )
 
-    # ------------------------------------------------------------------
-    # Low-level protocol
-    # ------------------------------------------------------------------
-
-    def _send_zone(
+    def _send_lenovo_packet(
         self,
-        zone: int,
-        effect: Effect,
-        r: int, g: int, b: int,
-        speed: int = DEFAULT_SPEED,
+        colors: list[ZoneColor],
+        effect: Effect = Effect.STATIC,
+        speed: int = 1,
         brightness_pct: int = 100,
+        direction: str = "ltr",
     ) -> bool:
         """
-        Build and send a zone-control HID report.
-        Brightness percentage (0-100%) mapped to 1-4 level scale expected by ITE.
+        Build and send Lenovo 33-byte ITE feature report packet:
+          [0xCC, 0x16, effect_code, speed, brightness_level,
+           R1, G1, B1, R2, G2, B2, R3, G3, B3, R4, G4, B4,
+           0, dir1, dir2, 0, ...]
         """
-        if brightness_pct <= 0 or effect == Effect.OFF:
-            bright_level = 0
+        data = bytearray(33)
+        data[0] = REPORT_ID  # 0xCC (204)
+        data[1] = 0x16       # Lenovo SET_OPTIONS command (22)
+
+        if effect == Effect.OFF or brightness_pct <= 0:
+            data[2] = int(Effect.STATIC)
+            # data[3..32] remain 0x00
         else:
-            bright_level = max(1, min(4, int((brightness_pct + 24) // 25)))
+            eff_code = int(effect)
+            bright_level = max(1, min(2, int((brightness_pct + 49) // 50)))
 
-        data = bytes([
-            CMD_SET_LIGHTING,
-            zone & 0xFF,
-            int(effect),
-            speed & 0xFF,
-            bright_level & 0xFF,
-            r & 0xFF,
-            g & 0xFF,
-            b & 0xFF,
-        ]) + bytes(PAYLOAD_LEN - 1 - 8)
+            data[2] = eff_code & 0xFF
+            data[3] = speed & 0xFF
+            data[4] = bright_level & 0xFF
 
-        return self._write(data)
+            if effect in (Effect.STATIC, Effect.BREATHING):
+                for idx, color in enumerate(colors[:NUM_ZONES]):
+                    offset = 5 + (idx * 3)
+                    if offset + 2 < len(data):
+                        data[offset] = color.r & 0xFF
+                        data[offset + 1] = color.g & 0xFF
+                        data[offset + 2] = color.b & 0xFF
 
-    def _commit(self) -> bool:
-        """Send commit command to apply all pending zone writes."""
-        data = bytes([CMD_COMMIT]) + bytes(PAYLOAD_LEN - 2)
-        return self._write(data)
+            data[17] = 0
+            if direction == "rtl":
+                data[18], data[19] = 1, 0
+            elif direction == "ltr":
+                data[18], data[19] = 0, 1
+            else:
+                data[18], data[19] = 0, 0
 
-    def _make_payload(self, subcmd: int, **kwargs: int) -> bytes:
-        """Generic payload builder for non-zone commands."""
-        buf = bytearray(PAYLOAD_LEN - 1)
-        buf[0] = subcmd
-        for i, (_, v) in enumerate(kwargs.items(), start=1):
-            if i < len(buf):
-                buf[i] = v & 0xFF
-        return bytes(buf)
+        return self._write_raw(bytes(data))
 
-    def _write(self, data: bytes) -> bool:
-        """Send HID feature report. Prepends REPORT_ID."""
+    def _write_raw(self, report: bytes) -> bool:
+        """Send 33-byte HID feature report or output report to ITE controller."""
         if not self.is_open:
             return False
+        ok = False
         try:
-            report = bytes([REPORT_ID]) + data
-            # Pad/truncate to exactly PAYLOAD_LEN bytes
-            report = report[:PAYLOAD_LEN].ljust(PAYLOAD_LEN, b'\x00')
             self._device.send_feature_report(report)  # type: ignore[union-attr]
-            return True
+            ok = True
         except Exception as exc:
-            log.error("HID write error: %s", exc)
-            return False
+            log.debug("send_feature_report failed: %s", exc)
+
+        try:
+            self._device.write(report)  # type: ignore[union-attr]
+            ok = True
+        except Exception as exc:
+            log.debug("dev.write failed: %s", exc)
+
+        return ok
 
 
 # ---------------------------------------------------------------------------

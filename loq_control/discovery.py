@@ -337,10 +337,19 @@ def _probe_keyboard_rgb(caps: Capabilities) -> None:
         for pid in _ITE_KEYBOARD_PIDS:
             devices = hid.enumerate(_ITE_VID, pid)
             if devices:
+                target_dev = None
+                for d in devices:
+                    if d.get("interface_number") == 0 or b"hidraw0" in d.get("path", b""):
+                        target_dev = d
+                        break
+                if target_dev is None and devices:
+                    target_dev = devices[0]
+
                 caps.keyboard_rgb_available = True
                 caps.keyboard_vid = _ITE_VID
                 caps.keyboard_pid = pid
-                caps.keyboard_hid_path = devices[0].get("path", b"").decode(errors="replace")
+                raw_path = target_dev.get("path", b"")
+                caps.keyboard_hid_path = raw_path.decode(errors="replace") if isinstance(raw_path, bytes) else str(raw_path)
                 log.info("ITE keyboard HID found: VID=%04x PID=%04x path=%s",
                          _ITE_VID, pid, caps.keyboard_hid_path)
                 return
