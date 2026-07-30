@@ -341,6 +341,9 @@ def cmd_gpu_switch(mode: str) -> int:
     )
     if result.returncode == 0:
         try:
+            subprocess.run(["udevadm", "control", "--reload-rules"], capture_output=True)
+            subprocess.run(["udevadm", "trigger"], capture_output=True)
+            os.sync()
             os.sync()
         except Exception:
             pass
