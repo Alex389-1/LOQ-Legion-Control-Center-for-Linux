@@ -49,12 +49,12 @@ def get_active_profile() -> str | None:
     try:
         result = subprocess.run(
             ["powerprofilesctl", "get"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, timeout=2
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except FileNotFoundError:
-        log.warning("powerprofilesctl not found.")
+    except (FileNotFoundError, subprocess.TimeoutExpired, KeyboardInterrupt):
+        pass
     except Exception as exc:
         log.warning("get_active_profile failed: %s", exc)
     return None

@@ -191,7 +191,13 @@ class PowerTab(QWidget):
     # ------------------------------------------------------------------
 
     def _refresh_profile(self) -> None:
-        profile = pp.get_active_profile()
+        if hasattr(self, "_query_worker") and self._query_worker.isRunning():
+            return
+        self._query_worker = _ProfileQueryWorker(self)
+        self._query_worker.result.connect(self._on_query_result)
+        self._query_worker.start()
+
+    def _on_query_result(self, profile: str) -> None:
         if profile and profile != self._current_profile:
             self._set_active_profile(profile)
 
@@ -256,3 +262,12 @@ class _ProfileSwitchWorker(QThread):
     def run(self) -> None:
         ok = pp.set_profile(self._profile)
         self.finished.emit(self._profile, ok)
+
+
+class _ProfileQueryWorker(QThread):
+    result = Signal(str)
+
+    def run(self) -> None:
+        p = pp.get_active_profile()
+        if p:
+            self.result.emit(p)
