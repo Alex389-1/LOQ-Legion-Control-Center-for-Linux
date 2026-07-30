@@ -51,6 +51,7 @@ class Capabilities:
     nvidia_available: bool = False
     nvidia_device_name: str | None = None
     intel_gpu_top_available: bool = False
+    intel_gpu_available: bool = False
 
     # --- GPU switcher ---
     envycontrol_available: bool = False
@@ -235,7 +236,15 @@ def _probe_nvidia(caps: Capabilities) -> None:
 def _probe_intel_gpu_top(caps: Capabilities) -> None:
     if shutil.which("intel_gpu_top"):
         caps.intel_gpu_top_available = True
+        caps.intel_gpu_available = True
         log.info("intel_gpu_top found.")
+
+    for card_dir in glob.glob("/sys/class/drm/card*"):
+        p = Path(card_dir)
+        if (p / "gt_act_freq_mhz").exists() or (p / "gt/gt0/rps_act_freq_mhz").exists() or (p / "gt_cur_freq_mhz").exists():
+            caps.intel_gpu_available = True
+            log.info("Intel iGPU sysfs frequency node found at %s", card_dir)
+            break
 
 
 # Power limit attribute names to look for (in order of preference)

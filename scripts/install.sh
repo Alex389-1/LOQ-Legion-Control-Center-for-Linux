@@ -85,9 +85,14 @@ sed -i '1s|.*|#!/usr/bin/env python3|' /usr/local/bin/loq-helper
 success "Privileged helper installed."
 
 # ---------------------------------------------------------------------------
-# 4. Polkit policy
+# 4. Polkit policy & Sudoers rule
 # ---------------------------------------------------------------------------
-info "Installing polkit policy…"
+info "Installing sudoers rule for privileged helper…"
+cat > /etc/sudoers.d/99-loq-control << EOF
+$REAL_USER ALL=(ALL) NOPASSWD: /usr/local/bin/loq-helper, /usr/local/bin/envycontrol, $VENV_DIR/bin/envycontrol
+EOF
+chmod 0440 /etc/sudoers.d/99-loq-control
+success "Sudoers rule configured."
 POLKIT_DIR="/usr/share/polkit-1/actions"
 if [ -d "$POLKIT_DIR" ]; then
     cp "$PROJECT_DIR/polkit/com.github.loq-control.policy" "$POLKIT_DIR/"

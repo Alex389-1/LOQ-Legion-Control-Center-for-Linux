@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtWidgets import (
-    QCheckBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout,
-    QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+    QApplication, QCheckBox, QDialog, QDialogButtonBox, QFrame, QHBoxLayout,
+    QLabel, QProgressDialog, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
 
-from loq_control.dashboard.widgets.icons import get_icon
+from loq_control.dashboard.widgets.icons import get_icon, get_pixmap
 import loq_control.backend.gpu_switch as gs
 
 if TYPE_CHECKING:
@@ -90,8 +90,9 @@ class _ConfirmDialog(QDialog):
         layout.setSpacing(16)
         layout.setContentsMargins(24, 24, 24, 20)
 
-        icon_lbl = QLabel(_MODE_ICONS.get(target_mode, "●"))
-        icon_lbl.setStyleSheet("font-size: 36px;")
+        icon_lbl = QLabel()
+        svg_name = _MODE_SVG_KEYS.get(target_mode, "gpu")
+        icon_lbl.setPixmap(get_pixmap(svg_name, 36, color="#3b82f6"))
         icon_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(icon_lbl)
 
@@ -136,20 +137,28 @@ class _ConfirmDialog(QDialog):
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Apply | QDialogButtonBox.StandardButton.Cancel
         )
-        buttons.button(QDialogButtonBox.StandardButton.Apply).setStyleSheet("""
-            QPushButton {
-                background: #2563eb; color: white; border: none;
-                border-radius: 8px; font-weight: 500; padding: 8px 20px;
-            }
-            QPushButton:hover { background: #1d4ed8; }
-        """)
-        buttons.button(QDialogButtonBox.StandardButton.Cancel).setStyleSheet("""
-            QPushButton {
-                background: #18181b; color: #a1a1aa; border: 1px solid #27272a;
-                border-radius: 8px; font-weight: 500; padding: 8px 20px;
-            }
-            QPushButton:hover { background: #27272a; color: #f4f4f5; }
-        """)
+        apply_btn = buttons.button(QDialogButtonBox.StandardButton.Apply)
+        if apply_btn:
+            apply_btn.setStyleSheet("""
+                QPushButton {
+                    background: #2563eb; color: white; border: none;
+                    border-radius: 8px; font-weight: 500; padding: 8px 20px;
+                }
+                QPushButton:hover { background: #1d4ed8; }
+            """)
+            apply_btn.clicked.connect(self.accept)
+
+        cancel_btn = buttons.button(QDialogButtonBox.StandardButton.Cancel)
+        if cancel_btn:
+            cancel_btn.setStyleSheet("""
+                QPushButton {
+                    background: #18181b; color: #a1a1aa; border: 1px solid #27272a;
+                    border-radius: 8px; font-weight: 500; padding: 8px 20px;
+                }
+                QPushButton:hover { background: #27272a; color: #f4f4f5; }
+            """)
+            cancel_btn.clicked.connect(self.reject)
+
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
@@ -161,6 +170,21 @@ class _ConfirmDialog(QDialog):
     @property
     def is_reboot(self) -> bool:
         return self._reboot
+
+
+class _GpuSwitchWorker(QThread):
+    """Background worker thread for long-running GPU switch + initramfs rebuild."""
+
+    finished_signal = Signal(bool, str)
+
+    def __init__(self, mode: str, caps: "Capabilities", parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._mode = mode
+        self._caps = caps
+
+    def run(self) -> None:
+        success, err = gs.switch_mode(self._mode, self._caps)
+        self.finished_signal.emit(success, err)
 
 
 class GpuTab(QWidget):
@@ -219,14 +243,11 @@ class GpuTab(QWidget):
         )
         pending_layout = QHBoxLayout(self._pending_banner)
         pending_layout.setContentsMargins(16, 12, 16, 12)
-        pending_mode = gs.get_pending_mode()
-        pending_text = QLabel(
-            f"🔄  GPU mode switch to <b>{gs.MODE_LABELS.get(pending_mode or '', pending_mode or 'Unknown')}</b> "
-            f"is pending. Please restart your system to apply."
-        )
-        pending_text.setStyleSheet("color: #f59e0b; font-size: 12px;")
-        pending_text.setWordWrap(True)
-        pending_layout.addWidget(pending_text)
+        self._pending_text = QLabel()
+        self._pending_text.setStyleSheet("color: #f59e0b; font-size: 12px;")
+        self._pending_text.setWordWrap(True)
+        self._update_pending_text(gs.get_pending_mode())
+        pending_layout.addWidget(self._pending_text)
         self._pending_banner.setVisible(self._pending)
         root.addWidget(self._pending_banner)
 
@@ -260,14 +281,41 @@ class GpuTab(QWidget):
         self._mode_desc.setWordWrap(True)
         mode_layout.addWidget(self._mode_title)
         mode_layout.addWidget(self._mode_desc)
+
+        # Bios note
+        bios_note = QLabel(
+            "ℹ️  Note: GPU mode switching is managed in software via envycontrol (driver configuration & PCIe power states). "
+            "The physical UEFI BIOS setup option remains on 'Dynamic Graphics', which is normal and recommended for Linux."
+        )
+        bios_note.setStyleSheet("color: #71717a; font-size: 11px;")
+        bios_note.setWordWrap(True)
+        mode_layout.addWidget(bios_note)
+
         root.addWidget(self._mode_frame)
 
         root.addStretch()
 
     # ------------------------------------------------------------------
 
+    def _update_pending_text(self, mode: str | None) -> None:
+        label = gs.MODE_LABELS.get(mode or "", mode or "Unknown")
+        self._pending_text.setText(
+            f"🔄  GPU mode switch to <b>{label}</b> is pending. Please restart your system to apply."
+        )
+
     def _refresh_mode(self) -> None:
         mode = gs.get_current_mode(self._caps)
+        pending = gs.get_pending_mode()
+        if pending:
+            self._update_pending_text(pending)
+        if pending and mode == pending:
+            gs.clear_pending()
+            self._pending = False
+            if hasattr(self, "_pending_banner"):
+                self._pending_banner.setVisible(False)
+            for btn in self._buttons.values():
+                btn.setDisabled(False)
+
         if mode and mode != self._current_mode:
             self._set_current_mode(mode)
 
@@ -294,7 +342,45 @@ class GpuTab(QWidget):
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
 
-        success, err = gs.switch_mode(mode, self._caps)
+        progress = QProgressDialog(
+            f"Switching GPU mode to {gs.MODE_LABELS.get(mode, mode)}…\n\n"
+            "Rebuilding Linux kernel initramfs image.\n"
+            "This takes ~30–40 seconds. Please wait.",
+            None, 0, 0, self
+        )
+        progress.setWindowTitle("Applying GPU Mode Switch")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setCancelButton(None)
+        progress.setStyleSheet("""
+            QProgressDialog { background: #09090b; color: #f4f4f5; }
+            QLabel { color: #f4f4f5; font-size: 12px; }
+            QProgressBar {
+                background: #18181b; border: 1px solid #27272a; border-radius: 4px;
+                height: 8px; text-align: center;
+            }
+            QProgressBar::chunk { background: #3b82f6; border-radius: 4px; }
+        """)
+        progress.show()
+        QApplication.processEvents()
+
+        self._worker = _GpuSwitchWorker(mode, self._caps, self)
+        self._worker.finished_signal.connect(
+            lambda success, err: self._on_switch_finished(
+                success, err, mode, progress, dlg.should_restart, dlg.is_reboot
+            )
+        )
+        self._worker.start()
+
+    def _on_switch_finished(
+        self,
+        success: bool,
+        err: str,
+        mode: str,
+        progress: QProgressDialog,
+        should_restart: bool,
+        is_reboot: bool,
+    ) -> None:
+        progress.close()
         if not success:
             from PySide6.QtWidgets import QMessageBox
             QMessageBox.critical(
@@ -305,14 +391,22 @@ class GpuTab(QWidget):
 
         # Success
         self._pending = True
+        self._update_pending_text(mode)
         self._pending_banner.setVisible(True)
-        # Update pending banner text
         for btn in self._buttons.values():
             btn.setDisabled(True)
 
-        if dlg.should_restart:
-            import subprocess
-            if dlg.is_reboot:
+        if should_restart:
+            import os, subprocess
+            if is_reboot:
                 subprocess.Popen(["systemctl", "reboot"])
             else:
-                subprocess.Popen(["loginctl", "terminate-session", ""])
+                session_id = os.environ.get("XDG_SESSION_ID")
+                if session_id:
+                    subprocess.Popen(["loginctl", "terminate-session", session_id])
+                else:
+                    user = os.environ.get("USER", "")
+                    if user:
+                        subprocess.Popen(["loginctl", "terminate-user", user])
+                    else:
+                        subprocess.Popen(["systemctl", "restart", "display-manager"])

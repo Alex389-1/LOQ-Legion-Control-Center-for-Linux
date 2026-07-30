@@ -60,8 +60,8 @@ class MonitorTab(QWidget):
             sparkline_color="#38bdf8"
         )
         self._igpu_card._sparkline.set_color("#38bdf8")
-        if not self._caps.intel_gpu_top_available:
-            self._igpu_card.set_unavailable("intel_gpu_top not installed")
+        if not self._caps.intel_gpu_available and not self._caps.intel_gpu_top_available:
+            self._igpu_card.set_unavailable("Intel iGPU not detected")
 
         # --- dGPU ---
         self._gpu_card = MetricCard(

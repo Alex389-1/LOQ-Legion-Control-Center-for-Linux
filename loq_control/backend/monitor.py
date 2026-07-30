@@ -8,8 +8,10 @@ Gathers: CPU, RAM, Disk (psutil), NVIDIA dGPU (pynvml), Intel iGPU
 
 from __future__ import annotations
 
+import glob
 import json
 import logging
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -109,45 +111,80 @@ class _IntelGpuReader:
 
     def __init__(self, available: bool) -> None:
         self._available = available
+        self._top_available = shutil.which("intel_gpu_top") is not None
         self._proc: subprocess.Popen | None = None
         self._last_util: float | None = None
+        self._sysfs_paths = self._find_sysfs_paths()
+
+    def _find_sysfs_paths(self) -> tuple[Path, Path | None, Path] | None:
+        for card_dir in glob.glob("/sys/class/drm/card*"):
+            p = Path(card_dir)
+            act_f = p / "gt_act_freq_mhz"
+            if not act_f.exists():
+                act_f = p / "gt/gt0/rps_act_freq_mhz"
+            if not act_f.exists():
+                act_f = p / "gt_cur_freq_mhz"
+
+            max_f = p / "gt_max_freq_mhz"
+            if not max_f.exists():
+                max_f = p / "gt/gt0/rps_max_freq_mhz"
+
+            min_f = p / "gt_min_freq_mhz"
+            if not min_f.exists():
+                min_f = p / "gt/gt0/rps_min_freq_mhz"
+
+            if act_f.exists() and max_f.exists():
+                return act_f, min_f if min_f.exists() else None, max_f
+        return None
 
     def start(self) -> None:
         if not self._available:
             return
-        try:
-            self._proc = subprocess.Popen(
-                ["intel_gpu_top", "-J", "-s", "950"],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
-                text=True,
-            )
-            log.info("intel_gpu_top subprocess started (PID %d).", self._proc.pid)
-        except FileNotFoundError:
-            log.warning("intel_gpu_top not found; iGPU monitoring disabled.")
-            self._available = False
+        if self._top_available:
+            try:
+                self._proc = subprocess.Popen(
+                    ["intel_gpu_top", "-J", "-s", "950"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.DEVNULL,
+                    text=True,
+                )
+                log.info("intel_gpu_top subprocess started (PID %d).", self._proc.pid)
+            except FileNotFoundError:
+                self._top_available = False
 
     def read_util(self) -> float | None:
-        """Non-blocking read of the latest render engine utilization."""
-        if self._proc is None or self._proc.poll() is not None:
-            return None
-        try:
-            line = self._proc.stdout.readline()  # type: ignore[union-attr]
-            if not line:
+        if self._top_available and self._proc and self._proc.poll() is None:
+            try:
+                line = self._proc.stdout.readline()
+                if line:
+                    line = line.strip().lstrip(",").lstrip("[").rstrip("]")
+                    if line and line not in ("{", "}"):
+                        obj = json.loads(line)
+                        engines = obj.get("engines", {})
+                        for key in ("Render/3D", "Render/3D/0", "render", "Render"):
+                            if key in engines:
+                                val = engines[key].get("busy", 0.0)
+                                self._last_util = float(val)
+                                return self._last_util
+            except Exception:
+                pass
+
+        # Fallback to sysfs frequency scaling utilization
+        if self._sysfs_paths:
+            act_f, min_f, max_f = self._sysfs_paths
+            try:
+                act = float(act_f.read_text().strip())
+                mx = float(max_f.read_text().strip())
+                mn = float(min_f.read_text().strip()) if min_f and min_f.exists() else 0.0
+                if mx > mn:
+                    pct = max(0.0, min(100.0, ((act - mn) / (mx - mn)) * 100.0))
+                else:
+                    pct = 0.0
+                self._last_util = pct
                 return self._last_util
-            line = line.strip().lstrip(",").lstrip("[").rstrip("]")
-            if not line or line in ("{", "}"):
-                return self._last_util
-            obj = json.loads(line)
-            engines = obj.get("engines", {})
-            # Prefer "Render/3D" then "Render/3D/0"
-            for key in ("Render/3D", "Render/3D/0", "render", "Render"):
-                if key in engines:
-                    val = engines[key].get("busy", 0.0)
-                    self._last_util = float(val)
-                    return self._last_util
-        except (json.JSONDecodeError, KeyError, ValueError):
-            pass
+            except Exception:
+                pass
+
         return self._last_util
 
     def stop(self) -> None:
