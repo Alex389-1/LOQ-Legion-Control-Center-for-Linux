@@ -304,9 +304,20 @@ def cmd_gpu_switch(mode: str) -> int:
         print(f"ERROR: mode must be one of {ALLOWED_GPU_MODES}.", file=sys.stderr)
         return 1
 
-    # Find envycontrol
+    # Find envycontrol (search PATH + common venv/user paths)
     import shutil
     envycontrol = shutil.which("envycontrol")
+    if envycontrol is None:
+        candidates = (
+            glob.glob("/home/*/.local/share/loq-control/venv/bin/envycontrol") +
+            glob.glob("/home/*/Documents/LOQ/.venv/bin/envycontrol") +
+            glob.glob("/home/*/.local/bin/envycontrol")
+        )
+        for c in candidates:
+            if Path(c).is_file():
+                envycontrol = c
+                break
+
     if envycontrol is None:
         # Try supergfxctl
         supergfx = shutil.which("supergfxctl")
@@ -321,7 +332,7 @@ def cmd_gpu_switch(mode: str) -> int:
                 return 0
             print(f"ERROR: supergfxctl failed: {result.stderr.strip()}", file=sys.stderr)
             return 1
-        print("ERROR: Neither envycontrol nor supergfxctl found.", file=sys.stderr)
+        print("ERROR: Neither envycontrol nor supergfxctl found in PATH or venv.", file=sys.stderr)
         return 1
 
     result = subprocess.run(
