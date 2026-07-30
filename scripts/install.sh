@@ -53,11 +53,11 @@ echo ""
 # ---------------------------------------------------------------------------
 info "Creating Python virtual environment at $VENV_DIR…"
 sudo -u "$REAL_USER" mkdir -p "$VENV_DIR"
-sudo -u "$REAL_USER" python3 -m venv "$VENV_DIR"
+sudo -u "$REAL_USER" python3 -m venv --system-site-packages "$VENV_DIR"
 
 info "Installing Python dependencies…"
 sudo -u "$REAL_USER" "$VENV_DIR/bin/pip" install --quiet --upgrade pip
-sudo -u "$REAL_USER" "$VENV_DIR/bin/pip" install --quiet -r "$PROJECT_DIR/requirements.txt"
+sudo -u "$REAL_USER" "$VENV_DIR/bin/pip" install --quiet -r "$PROJECT_DIR/requirements.txt" git+https://github.com/bayasdev/envycontrol.git
 sudo -u "$REAL_USER" "$VENV_DIR/bin/pip" install --quiet -e "$PROJECT_DIR"
 success "Python package installed."
 
@@ -98,7 +98,26 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 5. Systemd user service
+# 5. udev rule for ITE keyboard RGB (no-root HID access)
+# ---------------------------------------------------------------------------
+info "Installing udev rule for ITE keyboard (VID 048d, PID c993)…"
+UDEV_RULES_DIR="/etc/udev/rules.d"
+cat > "$UDEV_RULES_DIR/99-ite-keyboard.rules" << 'UDEV_EOF'
+# LOQ Control Center — ITE keyboard RGB (unprivileged access)
+SUBSYSTEM=="usb", ATTR{idVendor}=="048d", ATTR{idProduct}=="c993", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="048d", ATTR{idProduct}=="c994", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="048d", ATTR{idProduct}=="c995", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="048d", ATTR{idProduct}=="c996", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTR{idVendor}=="048d", ATTR{idProduct}=="c997", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="048d", ATTRS{idProduct}=="c993", MODE="0666", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="048d", ATTRS{idProduct}=="c996", MODE="0666", TAG+="uaccess"
+UDEV_EOF
+udevadm control --reload-rules 2>/dev/null || true
+udevadm trigger 2>/dev/null || true
+success "udev rule installed. Re-plug keyboard if it was already connected."
+
+# ---------------------------------------------------------------------------
+# 6. Systemd user service
 # ---------------------------------------------------------------------------
 info "Installing systemd user service…"
 sudo -u "$REAL_USER" mkdir -p "$SYSTEMD_USER_DIR"

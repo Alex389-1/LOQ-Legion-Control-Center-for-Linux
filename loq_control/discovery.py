@@ -18,6 +18,7 @@ import os
 import platform
 import shutil
 import subprocess
+import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -29,7 +30,7 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class Capabilities:
-    # --- Fan ---
+    # --- Fan (monitoring only on LOQ — no hwmon exposure) ---
     fan_module: str | None = None          # "legion_laptop" | "lenovo_wmi_fan" | None
     fan_hwmon_path: Path | None = None     # /sys/class/hwmon/hwmonN
     fan_curve_readable: bool = False
@@ -40,6 +41,12 @@ class Capabilities:
     power_profiles_available: bool = False
     power_profiles_profiles: list[str] = field(default_factory=list)
 
+    # --- Power limits (WMI firmware-attributes) ---
+    power_limits_available: bool = False
+    power_limits_writable: bool = False
+    power_limits_base_path: Path | None = None  # path to firmware-attributes or legion sysfs dir
+    power_limit_attrs: dict[str, Path] = field(default_factory=dict)  # attr_name -> sysfs path
+
     # --- GPU ---
     nvidia_available: bool = False
     nvidia_device_name: str | None = None
@@ -49,6 +56,12 @@ class Capabilities:
     envycontrol_available: bool = False
     supergfxctl_available: bool = False
     gpu_switcher: str | None = None        # "envycontrol" | "supergfxctl" | None
+
+    # --- Keyboard RGB (ITE HID) ---
+    keyboard_rgb_available: bool = False
+    keyboard_hid_path: str | None = None   # hidraw or hidapi path
+    keyboard_vid: int = 0x048d
+    keyboard_pid: int = 0xc993
 
     # --- System ---
     kernel_version: str = ""
@@ -67,6 +80,7 @@ class Capabilities:
         return self.fan_rpm_readable
 
     def summary(self) -> str:
+        attrs_str = ", ".join(self.power_limit_attrs.keys()) if self.power_limit_attrs else "none"
         lines = [
             "=== LOQ Control Center — Capability Matrix ===",
             f"  Kernel          : {self.kernel_version}",
@@ -75,8 +89,11 @@ class Capabilities:
             f"  Fan module      : {self.fan_module or 'NOT DETECTED'}",
             f"  Fan hwmon path  : {self.fan_hwmon_path or 'N/A'}",
             f"  Fan RPM read    : {'YES' if self.fan_rpm_readable else 'NO'}",
-            f"  Fan curve read  : {'YES' if self.fan_curve_readable else 'NO'}",
-            f"  Fan curve write : {'YES (control enabled)' if self.fan_curve_writable else 'NO (monitoring only)'}",
+            f"  Fan curve write : {'YES (control enabled)' if self.fan_curve_writable else 'NO (not exposed on this hardware)'}",
+            "",
+            f"  Power limits    : {'YES — ' + attrs_str if self.power_limits_available else 'NO'}",
+            f"  Limits writable : {'YES' if self.power_limits_writable else 'NO'}",
+            f"  Limits base     : {self.power_limits_base_path or 'N/A'}",
             "",
             f"  Power profiles  : {'YES' if self.power_profiles_available else 'NO'}",
             f"  Profiles        : {', '.join(self.power_profiles_profiles) or 'N/A'}",
@@ -87,6 +104,8 @@ class Capabilities:
             f"  GPU switcher    : {self.gpu_switcher or 'NOT DETECTED'}",
             f"  envycontrol     : {'YES' if self.envycontrol_available else 'NO'}",
             f"  supergfxctl     : {'YES' if self.supergfxctl_available else 'NO'}",
+            "",
+            f"  Keyboard RGB    : {'YES — ' + (self.keyboard_hid_path or '') if self.keyboard_rgb_available else 'NO (udev rule or hid module needed)'}",
             "",
             f"  Priv helper     : {'INSTALLED' if self.helper_installed else 'NOT INSTALLED (install.sh needed)'}",
             "==============================================",
@@ -219,15 +238,146 @@ def _probe_intel_gpu_top(caps: Capabilities) -> None:
         log.info("intel_gpu_top found.")
 
 
+# Power limit attribute names to look for (in order of preference)
+_POWER_LIMIT_ATTR_NAMES = [
+    # WMI firmware-attributes names (Lenovo LOQ / Legion 2024+)
+    "ppt_pl1_spl",
+    "ppt_pl2_sppt",
+    "ppt_pl1_tau",
+    "ppt_cpu_cl",
+    "gpu_nv_ctgp",
+    "gpu_nv_ppab",
+    "gpu_nv_ac_offset",
+    "cpu_temp",
+    "gpu_temp",
+    # Legion-laptop sysfs (upstream or DKMS module)
+    "cpu_longterm_powerlimit",
+    "cpu_shortterm_powerlimit",
+    "cpu_peak_powerlimit",
+    "cpu_cross_loading_powerlimit",
+    "cpu_apu_spl",
+    "gpu_ctgp_powerlimit",
+    "gpu_ppab_powerlimit",
+    "gpu_ac_offset_powerlimit",
+    "CPULongTermPowerLimit",
+    "CPUShortTermPowerLimit",
+    "CPUPeakPowerLimit",
+    "CPUCrossLoadingPowerLimit",
+    "cTGP",
+    "PPAB",
+    "ACOffset",
+]
+
+# Base sysfs path patterns to search
+_POWER_LIMIT_BASE_PATTERNS = [
+    # firmware-attributes class
+    "/sys/class/firmware-attributes/*/attributes",
+    # legion-laptop DKMS / upstream
+    "/sys/module/legion_laptop/drivers/platform:legion/legion",
+    "/sys/module/legion_laptop/drivers/platform:legion/PNP0C09:00",
+    # ideapad / WMI platform driver
+    "/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00",
+    # WMI other
+    "/sys/bus/wmi/drivers/lenovo-wmi-other/*/*",
+    "/sys/bus/wmi/drivers/lenovo-wmi-gamezone/*/*",
+]
+
+
+def _probe_power_limits(caps: Capabilities) -> None:
+    """Detect WMI firmware-attributes or legion-laptop power limit sysfs nodes."""
+    found_attrs: dict[str, Path] = {}
+    base_found: Path | None = None
+
+    for pattern in _POWER_LIMIT_BASE_PATTERNS:
+        for base_str in glob.glob(pattern):
+            base = Path(base_str)
+            for attr_name in _POWER_LIMIT_ATTR_NAMES:
+                attr_dir_or_file = base / attr_name
+                target_file: Path | None = None
+
+                if (attr_dir_or_file / "current_value").is_file():
+                    target_file = attr_dir_or_file / "current_value"
+                elif attr_dir_or_file.is_file():
+                    target_file = attr_dir_or_file
+
+                if target_file is not None:
+                    try:
+                        target_file.read_text()  # verify readable
+                        found_attrs[attr_name] = target_file
+                        if base_found is None:
+                            base_found = base
+                    except OSError:
+                        pass
+
+    if not found_attrs:
+        log.info("No power limit sysfs attributes found.")
+        return
+
+    caps.power_limits_available = True
+    caps.power_limits_base_path = base_found
+    caps.power_limit_attrs = found_attrs
+    log.info("Power limit attrs found: %s", list(found_attrs.keys()))
+
+    # WMI firmware-attributes on LOQ BIOS return EBUSY on dynamic writes
+    # Keep writable = False so UI presents a clean read-only monitoring dashboard
+    caps.power_limits_writable = False
+    log.info("Power limits probed in read-only monitoring mode.")
+
+
+# ITE keyboard USB device identifiers
+_ITE_VID = 0x048d
+_ITE_KEYBOARD_PIDS = [0xc993, 0xc994, 0xc995, 0xc996, 0xc997, 0x6004, 0x6006, 0x6007]
+
+
+def _probe_keyboard_rgb(caps: Capabilities) -> None:
+    """Detect ITE keyboard HID device via hidapi or /dev/hidraw."""
+    # Try hidapi enumerate
+    try:
+        import hid
+        for pid in _ITE_KEYBOARD_PIDS:
+            devices = hid.enumerate(_ITE_VID, pid)
+            if devices:
+                caps.keyboard_rgb_available = True
+                caps.keyboard_vid = _ITE_VID
+                caps.keyboard_pid = pid
+                caps.keyboard_hid_path = devices[0].get("path", b"").decode(errors="replace")
+                log.info("ITE keyboard HID found: VID=%04x PID=%04x path=%s",
+                         _ITE_VID, pid, caps.keyboard_hid_path)
+                return
+    except ImportError:
+        log.info("'hid' module not available — keyboard RGB detection requires: pip install hid")
+    except Exception as exc:
+        log.warning("HID enumerate failed: %s", exc)
+
+    # Fallback: scan /sys/bus/usb/devices for matching VID/PID
+    for device_dir in glob.glob("/sys/bus/usb/devices/*"):
+        idVendor_path = Path(device_dir) / "idVendor"
+        idProduct_path = Path(device_dir) / "idProduct"
+        try:
+            vid = int(idVendor_path.read_text().strip(), 16)
+            pid = int(idProduct_path.read_text().strip(), 16)
+            if vid == _ITE_VID and pid in _ITE_KEYBOARD_PIDS:
+                caps.keyboard_rgb_available = True
+                caps.keyboard_vid = vid
+                caps.keyboard_pid = pid
+                caps.keyboard_hid_path = device_dir
+                log.info("ITE keyboard found via USB sysfs: %s VID=%04x PID=%04x",
+                         device_dir, vid, pid)
+                return
+        except (OSError, ValueError):
+            pass
+
+
 def _probe_gpu_switcher(caps: Capabilities) -> None:
-    if shutil.which("envycontrol"):
+    venv_envy = Path(sys.prefix) / "bin" / "envycontrol"
+    if shutil.which("envycontrol") or venv_envy.exists():
         caps.envycontrol_available = True
         caps.gpu_switcher = "envycontrol"
-        log.info("GPU switcher: envycontrol")
+        log.info("GPU switcher: envycontrol found.")
     elif shutil.which("supergfxctl"):
         caps.supergfxctl_available = True
         caps.gpu_switcher = "supergfxctl"
-        log.info("GPU switcher: supergfxctl (deprecated fallback)")
+        log.info("GPU switcher: supergfxctl found.")
 
 
 def _probe_system(caps: Capabilities) -> None:
@@ -270,9 +420,11 @@ def discover(force: bool = False) -> Capabilities:
     _probe_system(caps)
     _probe_fan(caps)
     _probe_power_profiles(caps)
+    _probe_power_limits(caps)
     _probe_nvidia(caps)
     _probe_intel_gpu_top(caps)
     _probe_gpu_switcher(caps)
+    _probe_keyboard_rgb(caps)
     _probe_helper(caps)
 
     log.info("Discovery complete.")
@@ -280,12 +432,19 @@ def discover(force: bool = False) -> Capabilities:
     return caps
 
 
+def _stringify_paths(obj: any) -> any:
+    if isinstance(obj, Path):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: _stringify_paths(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_stringify_paths(v) for v in obj]
+    return obj
+
+
 def save_capabilities(caps: Capabilities, path: Path) -> None:
     """Serialize capabilities to JSON for debugging."""
-    data = asdict(caps)
-    # Convert Path objects to strings
-    if data.get("fan_hwmon_path"):
-        data["fan_hwmon_path"] = str(data["fan_hwmon_path"])
+    data = _stringify_paths(asdict(caps))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, indent=2))
 

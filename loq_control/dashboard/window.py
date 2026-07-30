@@ -16,7 +16,9 @@ from PySide6.QtWidgets import (
 from loq_control.backend.monitor import MonitorThread, SystemStats
 from loq_control.dashboard.fan_tab import FanTab
 from loq_control.dashboard.gpu_tab import GpuTab
+from loq_control.dashboard.keyboard_tab import KeyboardTab
 from loq_control.dashboard.monitor_tab import MonitorTab
+from loq_control.dashboard.power_limits_tab import PowerLimitsTab
 from loq_control.dashboard.power_tab import PowerTab
 import loq_control.config as cfg_mod
 
@@ -103,13 +105,17 @@ class DashboardWindow(QMainWindow):
 
         self._monitor_tab = MonitorTab(self._caps)
         self._power_tab = PowerTab(self._caps)
+        self._power_limits_tab = PowerLimitsTab(self._caps)
         self._fan_tab = FanTab(self._caps)
         self._gpu_tab = GpuTab(self._caps)
+        self._keyboard_tab = KeyboardTab(self._caps)
 
-        self._tabs.addTab(self._monitor_tab, "📊  Monitor")
-        self._tabs.addTab(self._power_tab,   "⚡  Power")
-        self._tabs.addTab(self._fan_tab,     "🌀  Fan")
-        self._tabs.addTab(self._gpu_tab,     "🎮  GPU Mode")
+        self._tabs.addTab(self._monitor_tab,       "📊  Monitor")
+        self._tabs.addTab(self._power_tab,          "⚡  Power")
+        self._tabs.addTab(self._power_limits_tab,   "🔋  Limits")
+        self._tabs.addTab(self._fan_tab,            "🌀  Fan")
+        self._tabs.addTab(self._gpu_tab,            "🎮  GPU Mode")
+        self._tabs.addTab(self._keyboard_tab,       "⌨️  Lighting")
 
         root.addWidget(self._tabs)
 

@@ -40,6 +40,36 @@ MIN_PWM_RAW = 0
 MAX_PWM_RAW = 255
 MAX_CURVE_POINTS = 10
 
+# Whitelisted power-limit sysfs attribute names (no arbitrary path writes)
+ALLOWED_POWER_LIMIT_ATTRS = {
+    # WMI firmware-attributes names (Lenovo LOQ / Legion 2024+)
+    "ppt_pl1_spl",
+    "ppt_pl2_sppt",
+    "ppt_pl1_tau",
+    "ppt_cpu_cl",
+    "gpu_nv_ctgp",
+    "gpu_nv_ppab",
+    "gpu_nv_ac_offset",
+    "cpu_temp",
+    "gpu_temp",
+    # legion_laptop module names
+    "cpu_longterm_powerlimit",
+    "cpu_shortterm_powerlimit",
+    "cpu_peak_powerlimit",
+    "cpu_cross_loading_powerlimit",
+    "cpu_apu_spl",
+    "gpu_ctgp_powerlimit",
+    "gpu_ppab_powerlimit",
+    "gpu_ac_offset_powerlimit",
+    "CPULongTermPowerLimit",
+    "CPUShortTermPowerLimit",
+    "CPUPeakPowerLimit",
+    "CPUCrossLoadingPowerLimit",
+    "cTGP",
+    "PPAB",
+    "ACOffset",
+}
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -57,13 +87,75 @@ def _find_hwmon_path() -> Path | None:
     return None
 
 
+def _find_power_limit_path(attr_name: str) -> Path | None:
+    """Locate a power-limit attribute file by scanning known sysfs base paths."""
+    base_patterns = [
+        "/sys/class/firmware-attributes/*/attributes",
+        "/sys/module/legion_laptop/drivers/platform:legion/legion",
+        "/sys/module/legion_laptop/drivers/platform:legion/PNP0C09:00",
+        "/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00",
+        "/sys/bus/wmi/drivers/lenovo-wmi-other/*/*",
+        "/sys/bus/wmi/drivers/lenovo-wmi-gamezone/*/*",
+    ]
+    for pattern in base_patterns:
+        for base_str in glob.glob(pattern):
+            attr_dir_or_file = Path(base_str) / attr_name
+            if (attr_dir_or_file / "current_value").is_file():
+                return attr_dir_or_file / "current_value"
+            elif attr_dir_or_file.is_file():
+                return attr_dir_or_file
+    return None
+
+
 def _write_sysfs(path: Path, value: str) -> None:
-    """Write a value to a sysfs file. Raises on failure."""
+    """Write a value to a sysfs file. Handles various sysfs driver requirements."""
+    val_str = f"{str(value).strip()}\n"
+    val_bytes = val_str.encode("ascii")
+    errors = []
+
+    # Method 1: os.open O_WRONLY
     try:
-        path.write_text(value)
-    except OSError as exc:
-        print(f"ERROR: Could not write {path}: {exc}", file=sys.stderr)
-        raise
+        fd = os.open(str(path), os.O_WRONLY)
+        try:
+            os.write(fd, val_bytes)
+            return
+        finally:
+            os.close(fd)
+    except OSError as e:
+        errors.append(f"O_WRONLY: {e}")
+
+    # Method 2: os.open O_RDWR
+    try:
+        fd = os.open(str(path), os.O_RDWR)
+        try:
+            os.write(fd, val_bytes)
+            return
+        finally:
+            os.close(fd)
+    except OSError as e:
+        errors.append(f"O_RDWR: {e}")
+
+    # Method 3: open('r+')
+    try:
+        with open(path, "r+", encoding="ascii") as f:
+            f.write(val_str)
+            f.flush()
+            return
+    except OSError as e:
+        errors.append(f"r+: {e}")
+
+    # Method 4: open('w')
+    try:
+        with open(path, "w", encoding="ascii") as f:
+            f.write(val_str)
+            f.flush()
+            return
+    except OSError as e:
+        errors.append(f"w: {e}")
+
+    err_msg = f"ERROR: Could not write {path} (tried 4 methods: {'; '.join(errors)})"
+    print(err_msg, file=sys.stderr)
+    raise OSError(err_msg)
 
 
 def _pwm_from_percent(percent: int) -> int:
@@ -245,6 +337,41 @@ def cmd_gpu_switch(mode: str) -> int:
     return result.returncode
 
 
+def cmd_power_limit(attr_name: str, value_str: str) -> int:
+    """Write a power limit attribute value to sysfs."""
+    # Validate attribute name against whitelist
+    if attr_name not in ALLOWED_POWER_LIMIT_ATTRS:
+        print(
+            f"ERROR: '{attr_name}' is not in the allowed power-limit attribute list.",
+            file=sys.stderr,
+        )
+        return 1
+
+    # Validate value is an integer
+    try:
+        value = int(value_str)
+    except ValueError:
+        print("ERROR: value must be an integer.", file=sys.stderr)
+        return 1
+
+    if not (0 <= value <= 200):
+        print("ERROR: value must be in range 0–200 W.", file=sys.stderr)
+        return 1
+
+    # Find the sysfs path
+    path = _find_power_limit_path(attr_name)
+    if path is None:
+        print(f"ERROR: Could not find sysfs node for '{attr_name}'.", file=sys.stderr)
+        return 1
+
+    try:
+        _write_sysfs(path, str(value))
+        print(f"Power limit '{attr_name}' set to {value}.")
+        return 0
+    except OSError:
+        return 1
+
+
 # ---------------------------------------------------------------------------
 # Main dispatcher
 # ---------------------------------------------------------------------------
@@ -253,10 +380,11 @@ def main() -> int:
     if len(sys.argv) < 2:
         print(
             "Usage: loq-helper <subcommand> [args...]\n"
-            "  fan-curve  <fan_id> <json>\n"
-            "  fan-manual <fan_id> <pwm%>\n"
-            "  fan-auto   <fan_id>\n"
-            "  gpu-switch <integrated|hybrid|nvidia>",
+            "  fan-curve    <fan_id> <json>\n"
+            "  fan-manual   <fan_id> <pwm%>\n"
+            "  fan-auto     <fan_id>\n"
+            "  gpu-switch   <integrated|hybrid|nvidia>\n"
+            "  power-limit  <attr_name> <watts>",
             file=sys.stderr,
         )
         return 1
@@ -286,6 +414,12 @@ def main() -> int:
             print("Usage: loq-helper gpu-switch <integrated|hybrid|nvidia>", file=sys.stderr)
             return 1
         return cmd_gpu_switch(sys.argv[2])
+
+    elif subcmd == "power-limit":
+        if len(sys.argv) < 4:
+            print("Usage: loq-helper power-limit <attr_name> <watts>", file=sys.stderr)
+            return 1
+        return cmd_power_limit(sys.argv[2], sys.argv[3])
 
     else:
         print(f"ERROR: Unknown subcommand: {subcmd}", file=sys.stderr)

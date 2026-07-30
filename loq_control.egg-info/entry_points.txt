@@ -1,0 +1,2 @@
+[console_scripts]
+loq-control = loq_control.main:main

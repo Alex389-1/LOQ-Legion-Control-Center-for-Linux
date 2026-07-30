@@ -91,24 +91,36 @@ class MonitorTab(QWidget):
         if not self._caps.nvidia_available:
             self._gpu_power_card.set_unavailable("NVIDIA GPU not detected")
 
-        # --- Fans ---
-        self._fan1_card = MetricCard(
-            "Fan 1", "🌀", " RPM", warn_threshold=99999, danger_threshold=99999,
-            sparkline_color="#64748b"
-        )
-        self._fan1_card._sparkline.set_max_value(6000.0)
-        self._fan1_card._sparkline.set_color("#64748b")
+        # --- Fans or Power Limit Targets ---
+        self._show_fans = self._caps.fan_rpm_readable
+        self._show_limits = not self._caps.fan_rpm_readable and self._caps.power_limits_available
 
-        self._fan2_card = MetricCard(
-            "Fan 2", "🌀", " RPM", warn_threshold=99999, danger_threshold=99999,
-            sparkline_color="#475569"
-        )
-        self._fan2_card._sparkline.set_max_value(6000.0)
-        self._fan2_card._sparkline.set_color("#475569")
+        if self._show_fans:
+            self._fan1_card = MetricCard(
+                "Fan 1", "🌀", " RPM", warn_threshold=99999, danger_threshold=99999, sparkline_color="#64748b"
+            )
+            self._fan1_card._sparkline.set_max_value(6000.0)
+            self._fan1_card._sparkline.set_color("#64748b")
+            self._fan2_card = MetricCard(
+                "Fan 2", "🌀", " RPM", warn_threshold=99999, danger_threshold=99999, sparkline_color="#475569"
+            )
+            self._fan2_card._sparkline.set_max_value(6000.0)
+            self._fan2_card._sparkline.set_color("#475569")
+        elif self._show_limits:
+            self._pl1_card = MetricCard(
+                "CPU PL1 Target", "🔋", " W", warn_threshold=999, danger_threshold=999, sparkline_color="#e8182c"
+            )
+            self._pl1_card._sparkline.set_color("#e8182c")
+            self._pl1_card._sparkline.set_max_value(120.0)
 
-        if not self._caps.fan_rpm_readable:
-            self._fan1_card.set_unavailable("Fan hwmon not detected")
-            self._fan2_card.set_unavailable("Fan hwmon not detected")
+            self._ctgp_card = MetricCard(
+                "GPU cTGP Target", "⚡", " W", warn_threshold=999, danger_threshold=999, sparkline_color="#38bdf8"
+            )
+            self._ctgp_card._sparkline.set_color("#38bdf8")
+            self._ctgp_card._sparkline.set_max_value(120.0)
+        else:
+            self._fan1_card = None
+            self._fan2_card = None
 
         # --- Disk mounts placeholder ---
         self._disk_card = MetricCard(
@@ -125,10 +137,16 @@ class MonitorTab(QWidget):
             (self._gpu_card,       1, 1),
             (self._gpu_temp_card,  2, 0),
             (self._gpu_power_card, 2, 1),
-            (self._fan1_card,      3, 0),
-            (self._fan2_card,      3, 1),
-            (self._disk_card,      4, 0, 1, 2),
         ]
+        if self._show_fans:
+            cards.append((self._fan1_card, 3, 0))
+            cards.append((self._fan2_card, 3, 1))
+        elif self._show_limits:
+            cards.append((self._pl1_card,  3, 0))
+            cards.append((self._ctgp_card, 3, 1))
+
+        cards.append((self._disk_card, 4, 0, 1, 2))
+
         for entry in cards:
             card = entry[0]
             row, col = entry[1], entry[2]
@@ -207,8 +225,8 @@ class MonitorTab(QWidget):
                 push_history=stats.gpu_power_w,
             )
 
-        # Fans
-        if self._caps.fan_rpm_readable:
+        # Fans / Limits update
+        if self._show_fans:
             self._fan1_card.update_value(
                 f"{stats.fan1_rpm}",
                 subtitle="Fan 1",
@@ -219,6 +237,24 @@ class MonitorTab(QWidget):
                 subtitle="Fan 2",
                 push_history=float(stats.fan2_rpm),
             )
+        elif self._show_limits:
+            import loq_control.backend.power_limits as pl
+            vals = pl.read_current_values(pl.resolve_attrs(self._caps))
+            pl1_val = vals.get("cpu_pl1")
+            ctgp_val = vals.get("gpu_ctgp")
+
+            if pl1_val is not None:
+                self._pl1_card.update_value(
+                    float(pl1_val),
+                    subtitle="CPU Sustained Power Limit",
+                    push_history=float(pl1_val),
+                )
+            if ctgp_val is not None:
+                self._ctgp_card.update_value(
+                    float(ctgp_val),
+                    subtitle="GPU Configurable TGP Target",
+                    push_history=float(ctgp_val),
+                )
 
         # Disk — show first mount for simplicity
         if stats.disk_mounts:
