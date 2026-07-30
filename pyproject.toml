@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "loq-control"
+version = "0.1.0"
+description = "Lenovo LOQ/Legion Control Center for Linux"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "GPL-3.0-or-later" }
+authors = [{ name = "Ankit Kumar Singh" }]
+dependencies = [
+    "PySide6>=6.6",
+    "psutil>=5.9",
+    "nvidia-ml-py>=12.0",
+    "tomli-w>=1.0",
+]
+
+[project.scripts]
+loq-control = "loq_control.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["loq_control*"]
+
+[tool.setuptools.package-data]
+"loq_control" = ["assets/icons/*.svg", "assets/fonts/*.ttf"]
