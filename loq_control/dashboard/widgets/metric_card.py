@@ -101,15 +101,27 @@ class MetricCard(QFrame):
             self._sparkline.set_color(color)
         self._sparkline.push_value(history_val)
 
-        # Status badge update
+        # Status badge update (P1.3)
         if self._current_value >= self._danger:
-            self._badge_label.setText("HOT" if "°C" in self._unit else "HIGH")
+            if "°C" in self._unit:
+                badge_text = "HOT"
+            elif "%" in self._unit:
+                badge_text = "SATURATED"
+            else:
+                badge_text = "MAX"
+            self._badge_label.setText(badge_text)
             self._badge_label.setStyleSheet(
                 "color: #f87171; background: #450a0a; border-radius: 4px; "
                 "font-size: 9px; font-weight: 700; padding: 2px 6px;"
             )
         elif self._current_value >= self._warn:
-            self._badge_label.setText("HIGH")
+            if "°C" in self._unit:
+                badge_text = "WARM"
+            elif "%" in self._unit:
+                badge_text = "BUSY"
+            else:
+                badge_text = "HIGH"
+            self._badge_label.setText(badge_text)
             self._badge_label.setStyleSheet(
                 "color: #fbbf24; background: #451a03; border-radius: 4px; "
                 "font-size: 9px; font-weight: 700; padding: 2px 6px;"

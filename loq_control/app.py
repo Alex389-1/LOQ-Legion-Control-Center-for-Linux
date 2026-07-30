@@ -15,31 +15,31 @@ APP_STYLESHEET = """
    ====================================================== */
 
 QWidget {
-    background-color: #0d0d0f;
-    color: #f0f0f2;
+    background-color: #09090b;
+    color: #f4f4f5;
     font-family: "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
     font-size: 13px;
 }
 
 /* Scrollbars */
 QScrollBar:vertical {
-    background: #0d0d0f;
+    background: #09090b;
     width: 8px;
     border-radius: 4px;
 }
 QScrollBar::handle:vertical {
-    background: #2a2a35;
+    background: #27272a;
     border-radius: 4px;
     min-height: 30px;
 }
 QScrollBar::handle:vertical:hover {
-    background: #3a3a50;
+    background: #3f3f46;
 }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: none; }
 
 QScrollBar:horizontal {
-    background: #0d0d0f;
+    background: #09090b;
     height: 8px;
     border-radius: 4px;
 }
@@ -55,35 +55,35 @@ QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal { width: 0; }
 
 /* QMessageBox */
 QMessageBox {
-    background: #16161a;
+    background: #09090b;
 }
 QMessageBox QLabel {
-    color: #f0f0f2;
+    color: #f4f4f5;
 }
 QMessageBox QPushButton {
-    background: #1e1e24;
-    color: #f0f0f2;
-    border: 1px solid #2a2a35;
+    background: #18181b;
+    color: #f4f4f5;
+    border: 1px solid #27272a;
     border-radius: 6px;
     padding: 6px 16px;
     min-width: 80px;
 }
 QMessageBox QPushButton:hover {
-    background: #252530;
+    background: #27272a;
 }
 QMessageBox QPushButton:default {
-    background: #e8182c;
-    border-color: #e8182c;
+    background: #2563eb;
+    border-color: #2563eb;
 }
 QMessageBox QPushButton:default:hover {
-    background: #ff2a3e;
+    background: #1d4ed8;
 }
 
 /* Tooltips */
 QToolTip {
-    background: #1e1e24;
-    color: #f0f0f2;
-    border: 1px solid #3a3a50;
+    background: #18181b;
+    color: #f4f4f5;
+    border: 1px solid #27272a;
     border-radius: 6px;
     padding: 6px 10px;
     font-size: 12px;
@@ -91,7 +91,7 @@ QToolTip {
 
 /* Dialog */
 QDialog {
-    background: #0d0d0f;
+    background: #09090b;
 }
 
 /* CheckBox */

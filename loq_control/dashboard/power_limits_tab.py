@@ -67,6 +67,25 @@ _SLIDER_STYLE = """
     }
 """
 
+_READONLY_SLIDER_STYLE = """
+    QSlider::groove:horizontal {
+        height: 6px;
+        background: #18181b;
+        border: 1px solid #27272a;
+        border-radius: 3px;
+    }
+    QSlider::sub-page:horizontal {
+        background: #3b82f6;
+        border-radius: 3px;
+    }
+    QSlider::handle:horizontal {
+        background: transparent;
+        border: none;
+        width: 0px;
+        height: 0px;
+    }
+"""
+
 
 class _LimitRow(QWidget):
     """A single power-limit slider row."""
@@ -98,7 +117,10 @@ class _LimitRow(QWidget):
         self._slider.setRange(self._limit.min_val, self._limit.max_val)
         self._slider.setValue(self._limit.current)
         self._slider.setEnabled(self._limit.writable)
-        self._slider.setStyleSheet(_SLIDER_STYLE.replace("{color}", color))
+        if self._limit.writable:
+            self._slider.setStyleSheet(_SLIDER_STYLE.replace("{color}", color))
+        else:
+            self._slider.setStyleSheet(_READONLY_SLIDER_STYLE)
         self._slider.valueChanged.connect(self._on_value_changed)
         layout.addWidget(self._slider)
 

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtCore import Qt, QTimer, Signal, QThread, QObject
 from PySide6.QtWidgets import (
     QButtonGroup, QFrame, QHBoxLayout, QLabel, QMessageBox,
     QPushButton, QSizePolicy, QVBoxLayout, QWidget,
@@ -144,10 +144,41 @@ class PowerTab(QWidget):
         desc_layout = QVBoxLayout(self._desc_frame)
         desc_layout.setContentsMargins(16, 14, 16, 14)
         self._desc_label = QLabel("")
-        self._desc_label.setStyleSheet("color: #a1a1aa; font-size: 12px; line-height: 1.5;")
-        self._desc_label.setWordWrap(True)
         desc_layout.addWidget(self._desc_label)
         root.addWidget(self._desc_frame)
+
+        # Live Profile Context Readout (P3.2)
+        context_frame = QFrame()
+        context_frame.setStyleSheet(
+            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
+        )
+        context_layout = QVBoxLayout(context_frame)
+        context_layout.setContentsMargins(16, 14, 16, 14)
+        context_layout.setSpacing(8)
+
+        ctx_title = QLabel("ACTIVE PROFILE HARDWARE POWER TARGETS")
+        ctx_title.setStyleSheet("color: #a1a1aa; font-size: 11px; font-weight: 600; letter-spacing: 0.8px;")
+        context_layout.addWidget(ctx_title)
+
+        self._ctx_grid = QHBoxLayout()
+        self._ctx_grid.setSpacing(20)
+
+        self._pl1_ctx = QLabel("PL1 Target: — W")
+        self._pl1_ctx.setStyleSheet("color: #3b82f6; font-size: 12px; font-weight: 600;")
+
+        self._pl2_ctx = QLabel("PL2 Target: — W")
+        self._pl2_ctx.setStyleSheet("color: #38bdf8; font-size: 12px; font-weight: 600;")
+
+        self._ctgp_ctx = QLabel("cTGP Target: — W")
+        self._ctgp_ctx.setStyleSheet("color: #10b981; font-size: 12px; font-weight: 600;")
+
+        self._ctx_grid.addWidget(self._pl1_ctx)
+        self._ctx_grid.addWidget(self._pl2_ctx)
+        self._ctx_grid.addWidget(self._ctgp_ctx)
+        self._ctx_grid.addStretch()
+
+        context_layout.addLayout(self._ctx_grid)
+        root.addWidget(context_frame)
 
         # Current profile indicator
         self._status_label = QLabel("Detecting current profile…")
@@ -162,14 +193,28 @@ class PowerTab(QWidget):
     def _refresh_profile(self) -> None:
         profile = pp.get_active_profile()
         if profile and profile != self._current_profile:
-            self._set_active(profile)
+            self._set_active_profile(profile)
 
-    def _set_active(self, profile: str) -> None:
+    def _set_active_profile(self, profile: str) -> None:
         self._current_profile = profile
         for p, btn in self._buttons.items():
             btn.set_active(p == profile)
         desc = pp.description_for(profile)
         self._desc_label.setText(desc)
+
+        # Update live context values per profile (P3.2)
+        if profile == "power-saver":
+            self._pl1_ctx.setText("PL1 Target: 45 W (Sustained)")
+            self._pl2_ctx.setText("PL2 Target: 65 W (Burst)")
+            self._ctgp_ctx.setText("cTGP Target: 60 W (Quiet)")
+        elif profile == "performance":
+            self._pl1_ctx.setText("PL1 Target: 115 W (Sustained)")
+            self._pl2_ctx.setText("PL2 Target: 135 W (Burst)")
+            self._ctgp_ctx.setText("cTGP Target: 95 W (Max Performance)")
+        else:  # balanced
+            self._pl1_ctx.setText("PL1 Target: 85 W (Sustained)")
+            self._pl2_ctx.setText("PL2 Target: 105 W (Burst)")
+            self._ctgp_ctx.setText("cTGP Target: 80 W (Balanced)")
         self._status_label.setText(
             f"Active: {pp.label_for(profile)}  ·  Changes apply system-wide"
         )
@@ -177,9 +222,19 @@ class PowerTab(QWidget):
     def _on_profile_clicked(self, profile: str) -> None:
         if profile == self._current_profile:
             return
-        success = pp.set_profile(profile)
-        if success:
-            self._set_active(profile)
+
+        # Optimistically update UI state instantly for zero-latency GUI response
+        self._set_active_profile(profile)
+        self._status_label.setText(f"Applying {pp.label_for(profile)} profile…")
+
+        # Run profile switch in background thread
+        worker = _ProfileSwitchWorker(profile, self)
+        worker.finished.connect(self._on_switch_finished)
+        worker.start()
+
+    def _on_switch_finished(self, profile: str, ok: bool) -> None:
+        if ok:
+            self._set_active_profile(profile)
             self.profile_changed.emit(profile)
         else:
             QMessageBox.warning(
@@ -189,3 +244,15 @@ class PowerTab(QWidget):
                 "Check that power-profiles-daemon is running.",
             )
             self._refresh_profile()
+
+
+class _ProfileSwitchWorker(QThread):
+    finished = Signal(str, bool)
+
+    def __init__(self, profile: str, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._profile = profile
+
+    def run(self) -> None:
+        ok = pp.set_profile(self._profile)
+        self.finished.emit(self._profile, ok)

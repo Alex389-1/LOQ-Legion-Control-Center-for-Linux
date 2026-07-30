@@ -61,9 +61,9 @@ _BTN_ACTIVE = """
 """
 
 _MODE_COLORS = {
-    "integrated": "#38bdf8",
-    "hybrid": "#f59e0b",
-    "nvidia": "#22c55e",
+    "integrated": "#3b82f6",
+    "hybrid": "#3b82f6",
+    "nvidia": "#3b82f6",
 }
 
 

@@ -141,7 +141,10 @@ class MetricDetailDialog(QDialog):
         chart_hdr.addWidget(chart_title)
         chart_hdr.addStretch()
 
-        # Calculate stats for history
+        self._stat_lbl = QLabel("")
+        self._stat_lbl.setStyleSheet("color: #3b82f6; font-size: 11px; font-weight: 600;")
+        chart_hdr.addWidget(self._stat_lbl)
+
         hist_data = getattr(self._history, self._history_attr_name(), [])
         if hist_data:
             valid = [v for v in hist_data if v is not None]
@@ -151,10 +154,7 @@ class MetricDetailDialog(QDialog):
                 max_v = max(valid)
                 cur_v = valid[-1]
                 unit = "°C" if "temp" in self._key else ("W" if "power" in self._key else "%")
-                stat_str = f"Min: {min_v:.1f}{unit}  ·  Avg: {avg_v:.1f}{unit}  ·  Max: {max_v:.1f}{unit}  ·  Current: {cur_v:.1f}{unit}"
-                stat_lbl = QLabel(stat_str)
-                stat_lbl.setStyleSheet("color: #3b82f6; font-size: 11px; font-weight: 600;")
-                chart_hdr.addWidget(stat_lbl)
+                self._stat_lbl.setText(f"Min: {min_v:.1f}{unit}  ·  Avg: {avg_v:.1f}{unit}  ·  Max: {max_v:.1f}{unit}  ·  Current: {cur_v:.1f}{unit}")
 
         chart_layout.addLayout(chart_hdr)
 
@@ -164,14 +164,15 @@ class MetricDetailDialog(QDialog):
         elif "fan" in self._key:
             max_y = 6000.0
 
-        sparkline = SparklineWidget(color="#3b82f6", max_value=max_y)
-        sparkline.setMinimumHeight(120)
+        self._sparkline = SparklineWidget(color="#3b82f6", max_value=max_y)
+        self._sparkline.setMinimumHeight(120)
         if hist_data:
-            sparkline.set_data(hist_data)
-        chart_layout.addWidget(sparkline)
+            self._sparkline.set_data(hist_data)
+        chart_layout.addWidget(self._sparkline)
         body.addWidget(chart_frame)
 
         # 2. Per-Core CPU Section (Only for CPU)
+        self._core_widgets = []
         if self._key == "cpu" and self._stats.cpu_per_core:
             core_frame = QFrame()
             core_frame.setStyleSheet("""
@@ -215,13 +216,16 @@ class MetricDetailDialog(QDialog):
                     }}
                 """)
 
-                val_lbl = QLabel(f"{val:5.1f}%")
+                val_lbl = QLabel(f"{val:.1f}%")
                 val_lbl.setStyleSheet(f"color: {bar_color}; font-size: 11px; font-weight: 700;")
-                val_lbl.setFixedWidth(45)
+                val_lbl.setFixedWidth(48)
+                val_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
                 grid.addWidget(lbl, row, col)
                 grid.addWidget(pbar, row, col + 1)
                 grid.addWidget(val_lbl, row, col + 2)
+
+                self._core_widgets.append((pbar, val_lbl))
 
             core_layout.addLayout(grid)
             body.addWidget(core_frame)
@@ -248,6 +252,7 @@ class MetricDetailDialog(QDialog):
         spec_grid.setColumnStretch(1, 1)
         spec_grid.setColumnStretch(3, 1)
 
+        self._spec_val_labels = []
         details = self._get_spec_tuples()
         for idx, (k, v) in enumerate(details):
             r = idx // 2
@@ -260,12 +265,57 @@ class MetricDetailDialog(QDialog):
 
             spec_grid.addWidget(klbl, r, c)
             spec_grid.addWidget(vlbl, r, c + 1)
+            self._spec_val_labels.append(vlbl)
 
         spec_layout.addLayout(spec_grid)
         body.addWidget(spec_frame)
 
         scroll.setWidget(container)
         layout.addWidget(scroll)
+
+    def update_stats(self, stats: SystemStats, history: StatsHistory) -> None:
+        self._stats = stats
+        self._history = history
+
+        # Update History Sparkline & Readout
+        hist_data = getattr(self._history, self._history_attr_name(), [])
+        if hist_data:
+            self._sparkline.set_data(hist_data)
+            valid = [v for v in hist_data if v is not None]
+            if valid and hasattr(self, "_stat_lbl"):
+                min_v = min(valid)
+                avg_v = sum(valid) / len(valid)
+                max_v = max(valid)
+                cur_v = valid[-1]
+                unit = "°C" if "temp" in self._key else ("W" if "power" in self._key else "%")
+                self._stat_lbl.setText(
+                    f"Min: {min_v:.1f}{unit}  ·  Avg: {avg_v:.1f}{unit}  ·  Max: {max_v:.1f}{unit}  ·  Current: {cur_v:.1f}{unit}"
+                )
+
+        # Update Per-Core CPU Bars
+        if self._key == "cpu" and stats.cpu_per_core and hasattr(self, "_core_widgets"):
+            for i, val in enumerate(stats.cpu_per_core):
+                if i < len(self._core_widgets):
+                    pbar, val_lbl = self._core_widgets[i]
+                    pbar.setValue(int(val))
+                    bar_color = "#22c55e" if val < 60 else ("#f59e0b" if val < 85 else "#ef4444")
+                    pbar.setStyleSheet(f"""
+                        QProgressBar {{
+                            background: #09090b; border: 1px solid #27272a; border-radius: 4px;
+                        }}
+                        QProgressBar::chunk {{
+                            background: {bar_color}; border-radius: 4px;
+                        }}
+                    """)
+                    val_lbl.setText(f"{val:.1f}%")
+                    val_lbl.setStyleSheet(f"color: {bar_color}; font-size: 11px; font-weight: 700;")
+
+        # Update Spec Grid Labels
+        if hasattr(self, "_spec_val_labels"):
+            details = self._get_spec_tuples()
+            for idx, (_, v) in enumerate(details):
+                if idx < len(self._spec_val_labels):
+                    self._spec_val_labels[idx].setText(v)
 
     def _history_attr_name(self) -> str:
         return {
@@ -283,8 +333,8 @@ class MetricDetailDialog(QDialog):
                 ("Logical Threads", str(len(self._stats.cpu_per_core))),
                 ("Clock Frequency", f"{self._stats.cpu_freq_mhz / 1000.0:.2f} GHz ({self._stats.cpu_freq_mhz:.0f} MHz)"),
                 ("Package Temperature", f"{self._stats.cpu_temp:.1f} °C" if self._stats.cpu_temp is not None else "N/A"),
-                ("Kernel Release", self._caps.kernel_version or "Linux"),
-                ("Architecture", "x86_64 (64-bit)"),
+                ("OS Kernel Release", self._caps.kernel_version or "Linux"),
+                ("System Architecture", "x86_64 (64-bit Linux)"),
             ]
         if self._key == "ram":
             import psutil

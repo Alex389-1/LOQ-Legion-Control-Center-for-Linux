@@ -68,6 +68,9 @@ class DashboardWindow(QMainWindow):
         self._monitor = monitor
         self._drag_pos = None
 
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
+        self.setStyleSheet("QMainWindow { background-color: #09090b; color: #f4f4f5; }")
+
         cfg = cfg_mod.get()
         self.setWindowTitle("LOQ Control Center")
         self.resize(cfg.window_width, cfg.window_height)
@@ -86,6 +89,7 @@ class DashboardWindow(QMainWindow):
     def _build_ui(self) -> None:
         central = QWidget()
         central.setObjectName("DashboardRoot")
+        central.setStyleSheet("QWidget#DashboardRoot { background-color: #09090b; }")
         self.setCentralWidget(central)
         root = QVBoxLayout(central)
         root.setContentsMargins(0, 0, 0, 0)

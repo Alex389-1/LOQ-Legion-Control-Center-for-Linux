@@ -262,6 +262,17 @@ class KeyboardTab(QWidget):
         preset_lbl.setStyleSheet("color: #a1a1aa; font-size: 12px;")
         preset_layout.addWidget(preset_lbl)
 
+        self._scope_combo = QComboBox()
+        self._scope_combo.addItems(["All 4 Zones", "Zone 1", "Zone 2", "Zone 3", "Zone 4"])
+        self._scope_combo.setStyleSheet("""
+            QComboBox {
+                background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46;
+                border-radius: 6px; padding: 4px 8px; font-size: 11px;
+            }
+            QComboBox::drop-down { border: none; }
+        """)
+        preset_layout.addWidget(self._scope_combo)
+
         presets = [
             ("Red",    (255, 0,   0)),
             ("Green",  (0,   255, 0)),
@@ -284,13 +295,13 @@ class KeyboardTab(QWidget):
 
         preset_layout.addStretch()
 
-        off_btn = QPushButton("⬛ Off")
+        off_btn = QPushButton("Off")
         off_btn.setStyleSheet("""
             QPushButton {
-                background: #1a0608; color: #ef4444; border: 1px solid #ef4444;
-                border-radius: 6px; font-size: 11px; padding: 6px 10px;
+                background: #18181b; color: #a1a1aa; border: 1px solid #27272a;
+                border-radius: 6px; font-size: 11px; padding: 6px 12px;
             }
-            QPushButton:hover { background: #250810; }
+            QPushButton:hover { background: #27272a; color: #f4f4f5; }
         """)
         off_btn.clicked.connect(self._turn_off)
         preset_layout.addWidget(off_btn)
@@ -310,8 +321,14 @@ class KeyboardTab(QWidget):
     # ------------------------------------------------------------------
 
     def _apply_preset(self, r: int, g: int, b: int) -> None:
-        for zw in self._zone_widgets:
-            zw.set_color(r, g, b)
+        scope_idx = self._scope_combo.currentIndex()
+        if scope_idx == 0:
+            for zw in self._zone_widgets:
+                zw.set_color(r, g, b)
+        else:
+            z_num = scope_idx - 1
+            if 0 <= z_num < len(self._zone_widgets):
+                self._zone_widgets[z_num].set_color(r, g, b)
         self._apply_lighting()
 
     def _turn_off(self) -> None:

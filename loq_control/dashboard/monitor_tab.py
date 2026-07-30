@@ -27,6 +27,7 @@ class MonitorTab(QWidget):
     def __init__(self, caps: "Capabilities", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._caps = caps
+        self._active_detail_dialog = None
         self._build_ui()
 
     def _build_ui(self) -> None:
@@ -184,6 +185,10 @@ class MonitorTab(QWidget):
         self._latest_stats = stats
         self._latest_history = history
 
+        # Forward live stats update to active detail modal if open
+        if self._active_detail_dialog and self._active_detail_dialog.isVisible():
+            self._active_detail_dialog.update_stats(stats, history)
+
         # CPU
         cpu_model = self._caps.cpu_model or "Intel Core Processor"
         cpu_temp_str = f"  ·  Temp: {stats.cpu_temp:.0f}°C" if stats.cpu_temp is not None else ""
@@ -334,4 +339,9 @@ class MonitorTab(QWidget):
             return
         from loq_control.dashboard.widgets.metric_detail_dialog import MetricDetailDialog
         dlg = MetricDetailDialog(key, self._latest_stats, self._latest_history, self._caps, parent=self)
+        self._active_detail_dialog = dlg
+        dlg.finished.connect(self._on_detail_dialog_closed)
         dlg.exec()
+
+    def _on_detail_dialog_closed(self) -> None:
+        self._active_detail_dialog = None

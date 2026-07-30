@@ -70,10 +70,10 @@ class SparklineWidget(QWidget):
 
         w = self.width()
         h = self.height()
-        pad_top = 8
-        pad_bot = 8
-        pad_left = 4
-        pad_right = 32 if self._show_axis_labels else 4
+        pad_top = 10
+        pad_bot = 10
+        pad_left = 6
+        pad_right = 34 if self._show_axis_labels else 6
 
         graph_w = w - pad_left - pad_right
         graph_h = h - pad_top - pad_bot
