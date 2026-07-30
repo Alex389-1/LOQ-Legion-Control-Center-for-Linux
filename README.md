@@ -104,6 +104,7 @@ journalctl --user -u loq-control -f   # View background service logs
 To cleanly remove LOQ Control Center, sudoers rules, udev rules, and desktop integration:
 
 ```bash
+cd ~/Documents/LOQ
 sudo ./scripts/uninstall.sh
 ```
 
