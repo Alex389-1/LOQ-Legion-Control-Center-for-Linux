@@ -32,11 +32,11 @@ _EFFECT_LABELS = {
 
 _APPLY_BTN = """
     QPushButton {
-        background: #e8182c; color: white; border: none;
-        border-radius: 8px; font-size: 13px; font-weight: 600; padding: 10px 24px;
+        background: #2563eb; color: white; border: none;
+        border-radius: 8px; font-size: 13px; font-weight: 500; padding: 10px 24px;
     }
-    QPushButton:hover { background: #ff2a3e; }
-    QPushButton:disabled { background: #2a2a35; color: #555568; }
+    QPushButton:hover { background: #1d4ed8; }
+    QPushButton:disabled { background: #27272a; color: #71717a; }
 """
 
 _COLOR_BTN = """
@@ -66,7 +66,7 @@ class _ZoneWidget(QFrame):
 
     def _build(self) -> None:
         self.setStyleSheet(
-            "QFrame { background: #16161a; border: 1px solid #2a2a35; border-radius: 10px; }"
+            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 12, 14, 12)
@@ -74,7 +74,7 @@ class _ZoneWidget(QFrame):
 
         # Zone label
         lbl = QLabel(_ZONE_NAMES[self._zone_id])
-        lbl.setStyleSheet("color: #8888a0; font-size: 10px; font-weight: 600; letter-spacing: 1px;")
+        lbl.setStyleSheet("color: #a1a1aa; font-size: 11px; font-weight: 600; letter-spacing: 0.8px;")
         lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(lbl)
 
@@ -184,14 +184,14 @@ class KeyboardTab(QWidget):
         # Effect selector + brightness
         controls_frame = QFrame()
         controls_frame.setStyleSheet(
-            "QFrame { background: #16161a; border: 1px solid #2a2a35; border-radius: 10px; }"
+            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
         )
         controls_layout = QHBoxLayout(controls_frame)
         controls_layout.setContentsMargins(16, 14, 16, 14)
         controls_layout.setSpacing(20)
 
         eff_lbl = QLabel("Effect:")
-        eff_lbl.setStyleSheet("color: #8888a0; font-size: 12px;")
+        eff_lbl.setStyleSheet("color: #a1a1aa; font-size: 12px;")
         controls_layout.addWidget(eff_lbl)
 
         self._effect_combo = QComboBox()
@@ -199,14 +199,14 @@ class KeyboardTab(QWidget):
         self._effect_combo.setCurrentText("Static")
         self._effect_combo.setStyleSheet("""
             QComboBox {
-                background: #1e1e24; color: #f0f0f2; border: 1px solid #2a2a35;
+                background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46;
                 border-radius: 6px; padding: 6px 10px; font-size: 12px;
                 min-width: 120px;
             }
             QComboBox::drop-down { border: none; }
             QComboBox QAbstractItemView {
-                background: #1e1e24; color: #f0f0f2; border: 1px solid #2a2a35;
-                selection-background-color: #2a2a35;
+                background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46;
+                selection-background-color: #3f3f46;
             }
         """)
         controls_layout.addWidget(self._effect_combo)
@@ -214,17 +214,17 @@ class KeyboardTab(QWidget):
         controls_layout.addSpacing(20)
 
         bright_lbl = QLabel("Brightness:")
-        bright_lbl.setStyleSheet("color: #8888a0; font-size: 12px;")
+        bright_lbl.setStyleSheet("color: #a1a1aa; font-size: 12px;")
         controls_layout.addWidget(bright_lbl)
 
         self._brightness_slider = QSlider(Qt.Orientation.Horizontal)
         self._brightness_slider.setRange(0, 100)
         self._brightness_slider.setValue(100)
         self._brightness_slider.setStyleSheet("""
-            QSlider::groove:horizontal { height:6px; background:#2a2a35; border-radius:3px; }
-            QSlider::sub-page:horizontal { background:#e8182c; border-radius:3px; }
+            QSlider::groove:horizontal { height:6px; background:#27272a; border-radius:3px; }
+            QSlider::sub-page:horizontal { background:#3b82f6; border-radius:3px; }
             QSlider::handle:horizontal {
-                background:#e8182c; border:none;
+                background:#3b82f6; border:none;
                 width:18px; height:18px; border-radius:9px; margin:-6px 0;
             }
         """)
@@ -232,7 +232,7 @@ class KeyboardTab(QWidget):
         controls_layout.addWidget(self._brightness_slider)
 
         self._bright_val_lbl = QLabel("100%")
-        self._bright_val_lbl.setStyleSheet("color: #f0f0f2; font-size: 12px; min-width: 36px;")
+        self._bright_val_lbl.setStyleSheet("color: #f4f4f5; font-size: 12px; min-width: 36px;")
         self._brightness_slider.valueChanged.connect(
             lambda v: self._bright_val_lbl.setText(f"{v}%")
         )
@@ -252,14 +252,14 @@ class KeyboardTab(QWidget):
         # Quick presets
         preset_frame = QFrame()
         preset_frame.setStyleSheet(
-            "QFrame { background: #16161a; border: 1px solid #2a2a35; border-radius: 10px; }"
+            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
         )
         preset_layout = QHBoxLayout(preset_frame)
         preset_layout.setContentsMargins(16, 12, 16, 12)
         preset_layout.setSpacing(10)
 
         preset_lbl = QLabel("Quick presets:")
-        preset_lbl.setStyleSheet("color: #8888a0; font-size: 12px;")
+        preset_lbl.setStyleSheet("color: #a1a1aa; font-size: 12px;")
         preset_layout.addWidget(preset_lbl)
 
         presets = [
@@ -274,10 +274,10 @@ class KeyboardTab(QWidget):
             btn = QPushButton(label)
             btn.setStyleSheet("""
                 QPushButton {
-                    background: #1e1e24; color: #f0f0f2; border: 1px solid #2a2a35;
+                    background: #27272a; color: #f4f4f5; border: 1px solid #3f3f46;
                     border-radius: 6px; font-size: 11px; padding: 6px 10px;
                 }
-                QPushButton:hover { background: #252530; }
+                QPushButton:hover { background: #3f3f46; }
             """)
             btn.clicked.connect(lambda checked, rv=r, gv=g, bv=b: self._apply_preset(rv, gv, bv))
             preset_layout.addWidget(btn)

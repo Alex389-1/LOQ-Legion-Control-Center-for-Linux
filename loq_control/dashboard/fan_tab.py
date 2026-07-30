@@ -53,7 +53,7 @@ class FanTab(QWidget):
         # Notice banner
         banner = QFrame()
         banner.setStyleSheet(
-            "QFrame { background: #16161a; border: 1px solid #2a2a35; border-radius: 10px; }"
+            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
         )
         banner_layout = QVBoxLayout(banner)
         banner_layout.setContentsMargins(20, 16, 20, 16)
@@ -66,7 +66,7 @@ class FanTab(QWidget):
             "Thermal management is handled entirely by the firmware.\n\n"
             "Fan RPM is shown below in read-only mode if the hwmon interface is available."
         )
-        notice.setStyleSheet("color: #8888a0; font-size: 12px; line-height: 1.6;")
+        notice.setStyleSheet("color: #a1a1aa; font-size: 12px; line-height: 1.6;")
         notice.setWordWrap(True)
         banner_layout.addWidget(notice)
         root.addWidget(banner)
@@ -97,7 +97,7 @@ class FanTab(QWidget):
     def _make_rpm_card(self, label: str) -> tuple[QFrame, QLabel]:
         frame = QFrame()
         frame.setStyleSheet(
-            "QFrame { background: #16161a; border: 1px solid #2a2a35; border-radius: 10px; }"
+            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
         )
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(20, 16, 20, 16)

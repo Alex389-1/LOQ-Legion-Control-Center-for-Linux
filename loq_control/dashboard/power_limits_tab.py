@@ -21,36 +21,36 @@ if TYPE_CHECKING:
 
 _APPLY_BTN = """
     QPushButton {
-        background: #e8182c;
+        background: #2563eb;
         color: white;
         border: none;
         border-radius: 8px;
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 500;
         padding: 10px 24px;
     }
-    QPushButton:hover { background: #ff2a3e; }
-    QPushButton:pressed { background: #c01020; }
-    QPushButton:disabled { background: #2a2a35; color: #555568; }
+    QPushButton:hover { background: #1d4ed8; }
+    QPushButton:pressed { background: #1e40af; }
+    QPushButton:disabled { background: #27272a; color: #71717a; }
 """
 
 _RESET_BTN = """
     QPushButton {
-        background: #1e1e24;
-        color: #a0a0b8;
-        border: 1px solid #2a2a35;
+        background: #18181b;
+        color: #a1a1aa;
+        border: 1px solid #27272a;
         border-radius: 8px;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 500;
         padding: 9px 18px;
     }
-    QPushButton:hover { background: #252530; color: #f0f0f2; }
+    QPushButton:hover { background: #27272a; color: #f4f4f5; }
 """
 
 _SLIDER_STYLE = """
     QSlider::groove:horizontal {
         height: 6px;
-        background: #2a2a35;
+        background: #27272a;
         border-radius: 3px;
     }
     QSlider::sub-page:horizontal {
@@ -247,7 +247,7 @@ class PowerLimitsTab(QWidget):
             card_layout = QVBoxLayout(cpu_card)
             card_layout.setContentsMargins(16, 14, 16, 14)
             for key, limit in cpu_attrs.items():
-                row = _LimitRow(limit, "#e8182c")
+                row = _LimitRow(limit, "#3b82f6")
                 self._rows[key] = row
                 card_layout.addWidget(row)
             inner_layout.addWidget(cpu_card)
@@ -260,7 +260,7 @@ class PowerLimitsTab(QWidget):
             card_layout = QVBoxLayout(gpu_card)
             card_layout.setContentsMargins(16, 14, 16, 14)
             for key, limit in gpu_attrs.items():
-                row = _LimitRow(limit, "#22c55e")
+                row = _LimitRow(limit, "#10b981")
                 self._rows[key] = row
                 card_layout.addWidget(row)
             inner_layout.addWidget(gpu_card)
@@ -289,13 +289,13 @@ class PowerLimitsTab(QWidget):
 
     def _section_header(self, text: str) -> QLabel:
         lbl = QLabel(text)
-        lbl.setStyleSheet("color: #8888a0; font-size: 11px; font-weight: 600; letter-spacing: 1px;")
+        lbl.setStyleSheet("color: #a1a1aa; font-size: 11px; font-weight: 600; letter-spacing: 0.8px;")
         return lbl
 
     def _make_card(self) -> QFrame:
         card = QFrame()
         card.setStyleSheet(
-            "QFrame { background: #16161a; border: 1px solid #2a2a35; border-radius: 10px; }"
+            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
         )
         return card
 

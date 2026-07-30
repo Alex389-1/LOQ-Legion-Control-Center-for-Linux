@@ -30,30 +30,30 @@ class _ProfileButton(QPushButton):
 
     INACTIVE_STYLE = """
         QPushButton {
-            background: #16161a;
-            border: 1px solid #2a2a35;
+            background: #18181b;
+            border: 1px solid #27272a;
             border-radius: 10px;
-            color: #8888a0;
+            color: #a1a1aa;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 500;
             padding: 18px 12px;
             text-align: center;
         }
         QPushButton:hover {
-            background: #1e1e24;
-            border-color: #3a3a50;
-            color: #f0f0f2;
+            background: #27272a;
+            border-color: #3f3f46;
+            color: #f4f4f5;
         }
     """
 
     ACTIVE_STYLE = """
         QPushButton {
-            background: #1a0608;
-            border: 2px solid #e8182c;
+            background: #18181b;
+            border: 2px solid #3b82f6;
             border-radius: 10px;
-            color: #f0f0f2;
+            color: #f4f4f5;
             font-size: 13px;
-            font-weight: 700;
+            font-weight: 600;
             padding: 17px 12px;
         }
     """
@@ -136,19 +136,19 @@ class PowerTab(QWidget):
         # Description card
         self._desc_frame = QFrame()
         self._desc_frame.setStyleSheet(
-            "QFrame { background: #16161a; border: 1px solid #2a2a35; border-radius: 10px; }"
+            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
         )
         desc_layout = QVBoxLayout(self._desc_frame)
         desc_layout.setContentsMargins(16, 14, 16, 14)
         self._desc_label = QLabel("")
-        self._desc_label.setStyleSheet("color: #a0a0b8; font-size: 12px; line-height: 1.5;")
+        self._desc_label.setStyleSheet("color: #a1a1aa; font-size: 12px; line-height: 1.5;")
         self._desc_label.setWordWrap(True)
         desc_layout.addWidget(self._desc_label)
         root.addWidget(self._desc_frame)
 
         # Current profile indicator
         self._status_label = QLabel("Detecting current profile…")
-        self._status_label.setStyleSheet("color: #8888a0; font-size: 11px;")
+        self._status_label.setStyleSheet("color: #71717a; font-size: 11px;")
         self._status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         root.addWidget(self._status_label)
 

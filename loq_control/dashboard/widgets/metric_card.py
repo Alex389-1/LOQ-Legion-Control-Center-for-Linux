@@ -16,10 +16,10 @@ from loq_control.dashboard.widgets.sparkline import SparklineWidget
 
 # Threshold colors
 _COLOR_GOOD    = "#22c55e"
-_COLOR_WARN    = "#f59e0b"
+_COLOR_WARN    = "#eab308"
 _COLOR_DANGER  = "#ef4444"
-_COLOR_NEUTRAL = "#8888a0"
-_COLOR_ACCENT  = "#e8182c"
+_COLOR_NEUTRAL = "#71717a"
+_COLOR_ACCENT  = "#3b82f6"
 
 
 def _threshold_color(value: float, warn: float = 60.0, danger: float = 85.0) -> str:
@@ -122,13 +122,13 @@ class MetricCard(QFrame):
         self.setObjectName("MetricCard")
         self.setStyleSheet("""
             QFrame#MetricCard {
-                background: #16161a;
-                border: 1px solid #2a2a35;
-                border-radius: 12px;
+                background: #18181b;
+                border: 1px solid #27272a;
+                border-radius: 10px;
             }
             QFrame#MetricCard:hover {
-                border: 1px solid #3a3a50;
-                background: #1a1a20;
+                border: 1px solid #3f3f46;
+                background: #27272a;
             }
         """)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
@@ -148,7 +148,7 @@ class MetricCard(QFrame):
 
         title_lbl = QLabel(self._title.upper())
         title_lbl.setStyleSheet(
-            "color: #8888a0; font-size: 10px; font-weight: 600; letter-spacing: 1.2px;"
+            "color: #a1a1aa; font-size: 11px; font-weight: 600; letter-spacing: 0.8px;"
         )
         header.addWidget(title_lbl)
         header.addStretch()
@@ -163,7 +163,7 @@ class MetricCard(QFrame):
 
         # Subtitle
         self._subtitle_label = QLabel("")
-        self._subtitle_label.setStyleSheet("color: #8888a0; font-size: 11px;")
+        self._subtitle_label.setStyleSheet("color: #71717a; font-size: 11px;")
         self._subtitle_label.setWordWrap(True)
         self._subtitle_label.hide()
         root.addWidget(self._subtitle_label)

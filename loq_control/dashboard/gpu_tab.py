@@ -29,33 +29,33 @@ _MODE_ICONS = {
 
 _BTN_INACTIVE = """
     QPushButton {{
-        background: #16161a;
-        border: 1px solid #2a2a35;
+        background: #18181b;
+        border: 1px solid #27272a;
         border-radius: 10px;
-        color: #8888a0;
+        color: #a1a1aa;
         font-size: 13px;
-        font-weight: 600;
+        font-weight: 500;
         padding: 18px 10px;
     }}
     QPushButton:hover {{
-        background: #1e1e24;
-        border-color: #3a3a50;
-        color: #f0f0f2;
+        background: #27272a;
+        border-color: #3f3f46;
+        color: #f4f4f5;
     }}
     QPushButton:disabled {{
-        background: #111116;
-        color: #3a3a50;
+        background: #111114;
+        color: #3f3f46;
     }}
 """
 
 _BTN_ACTIVE = """
     QPushButton {{
-        background: #0a0a14;
+        background: #18181b;
         border: 2px solid {color};
         border-radius: 10px;
-        color: #f0f0f2;
+        color: #f4f4f5;
         font-size: 13px;
-        font-weight: 700;
+        font-weight: 600;
         padding: 17px 10px;
     }}
 """
@@ -77,10 +77,10 @@ class _ConfirmDialog(QDialog):
         self.setMinimumWidth(440)
         self.setStyleSheet("""
             QDialog {
-                background: #0d0d0f;
-                color: #f0f0f2;
+                background: #09090b;
+                color: #f4f4f5;
             }
-            QLabel { color: #f0f0f2; }
+            QLabel { color: #f4f4f5; }
         """)
 
         restart_type = gs.MODE_RESTART_REQUIREMENT.get(target_mode, "logout")
@@ -96,18 +96,18 @@ class _ConfirmDialog(QDialog):
         layout.addWidget(icon_lbl)
 
         heading = QLabel(f"Switch to {gs.MODE_LABELS.get(target_mode, target_mode)}")
-        heading.setStyleSheet("font-size: 16px; font-weight: 700; color: #f0f0f2;")
+        heading.setStyleSheet("font-size: 16px; font-weight: 600; color: #f4f4f5;")
         heading.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(heading)
 
         desc = QLabel(gs.MODE_DESCRIPTIONS.get(target_mode, ""))
-        desc.setStyleSheet("color: #a0a0b8; font-size: 12px;")
+        desc.setStyleSheet("color: #a1a1aa; font-size: 12px;")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
         # Tool info
         tool_info = QLabel(f"Tool: <b>{switcher}</b>  ·  Requires: <b>{restart_type}</b>")
-        tool_info.setStyleSheet("color: #8888a0; font-size: 11px;")
+        tool_info.setStyleSheet("color: #71717a; font-size: 11px;")
         tool_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(tool_info)
 
@@ -119,7 +119,7 @@ class _ConfirmDialog(QDialog):
         )
         warn_lbl = QLabel(warn_text)
         warn_lbl.setStyleSheet(
-            "color: #f59e0b; background: #1a1200; border: 1px solid #4a3800; "
+            "color: #eab308; background: #1c1917; border: 1px solid #44403c; "
             "border-radius: 8px; padding: 12px; font-size: 12px;"
         )
         warn_lbl.setWordWrap(True)
@@ -129,7 +129,7 @@ class _ConfirmDialog(QDialog):
         self._reboot_check = QCheckBox(
             f"{'Reboot' if self._reboot else 'Log out'} automatically after applying"
         )
-        self._reboot_check.setStyleSheet("color: #a0a0b8; font-size: 12px;")
+        self._reboot_check.setStyleSheet("color: #a1a1aa; font-size: 12px;")
         layout.addWidget(self._reboot_check)
 
         # Buttons
@@ -138,17 +138,17 @@ class _ConfirmDialog(QDialog):
         )
         buttons.button(QDialogButtonBox.StandardButton.Apply).setStyleSheet("""
             QPushButton {
-                background: #e8182c; color: white; border: none;
-                border-radius: 8px; font-weight: 600; padding: 8px 20px;
+                background: #2563eb; color: white; border: none;
+                border-radius: 8px; font-weight: 500; padding: 8px 20px;
             }
-            QPushButton:hover { background: #ff2a3e; }
+            QPushButton:hover { background: #1d4ed8; }
         """)
         buttons.button(QDialogButtonBox.StandardButton.Cancel).setStyleSheet("""
             QPushButton {
-                background: #1e1e24; color: #a0a0b8; border: 1px solid #2a2a35;
-                border-radius: 8px; font-weight: 600; padding: 8px 20px;
+                background: #18181b; color: #a1a1aa; border: 1px solid #27272a;
+                border-radius: 8px; font-weight: 500; padding: 8px 20px;
             }
-            QPushButton:hover { background: #252530; color: #f0f0f2; }
+            QPushButton:hover { background: #27272a; color: #f4f4f5; }
         """)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
@@ -249,14 +249,14 @@ class GpuTab(QWidget):
         # Current mode indicator + description
         self._mode_frame = QFrame()
         self._mode_frame.setStyleSheet(
-            "QFrame { background: #16161a; border: 1px solid #2a2a35; border-radius: 10px; }"
+            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
         )
         mode_layout = QVBoxLayout(self._mode_frame)
         mode_layout.setContentsMargins(16, 14, 16, 14)
         self._mode_title = QLabel("Detecting current mode…")
-        self._mode_title.setStyleSheet("color: #f0f0f2; font-size: 13px; font-weight: 700;")
+        self._mode_title.setStyleSheet("color: #f4f4f5; font-size: 13px; font-weight: 600;")
         self._mode_desc = QLabel("")
-        self._mode_desc.setStyleSheet("color: #a0a0b8; font-size: 12px;")
+        self._mode_desc.setStyleSheet("color: #a1a1aa; font-size: 12px;")
         self._mode_desc.setWordWrap(True)
         mode_layout.addWidget(self._mode_title)
         mode_layout.addWidget(self._mode_desc)

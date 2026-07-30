@@ -28,22 +28,23 @@ if TYPE_CHECKING:
 _TAB_STYLE = """
 QTabWidget::pane {
     border: none;
-    background: transparent;
+    background: #09090b;
 }
 QTabBar::tab {
     background: transparent;
-    color: #8888a0;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 10px 20px;
+    color: #71717a;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 12px 22px;
     border-bottom: 2px solid transparent;
 }
 QTabBar::tab:selected {
-    color: #f0f0f2;
-    border-bottom: 2px solid #e8182c;
+    color: #f4f4f5;
+    font-weight: 600;
+    border-bottom: 2px solid #3b82f6;
 }
 QTabBar::tab:hover:!selected {
-    color: #c0c0d8;
+    color: #a1a1aa;
 }
 """
 
@@ -95,7 +96,7 @@ class DashboardWindow(QMainWindow):
         # Separator
         sep = QWidget()
         sep.setFixedHeight(1)
-        sep.setStyleSheet("background: #2a2a35;")
+        sep.setStyleSheet("background: #27272a;")
         root.addWidget(sep)
 
         # Tab widget
@@ -125,7 +126,7 @@ class DashboardWindow(QMainWindow):
         bar.setFixedHeight(50)
         bar.setStyleSheet("""
             QWidget#TitleBar {
-                background: #0d0d0f;
+                background: #09090b;
             }
         """)
         layout = QHBoxLayout(bar)
@@ -134,11 +135,11 @@ class DashboardWindow(QMainWindow):
 
         # Logo + title
         logo = QLabel("◈")
-        logo.setStyleSheet("color: #e8182c; font-size: 20px; font-weight: 700;")
+        logo.setStyleSheet("color: #3b82f6; font-size: 18px; font-weight: 700;")
         layout.addWidget(logo)
 
         title = QLabel("LOQ Control Center")
-        title.setStyleSheet("color: #f0f0f2; font-size: 14px; font-weight: 700; letter-spacing: 0.5px;")
+        title.setStyleSheet("color: #f4f4f5; font-size: 14px; font-weight: 600;")
         layout.addWidget(title)
 
         layout.addStretch()
