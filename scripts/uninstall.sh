@@ -34,6 +34,7 @@ fi
 # Remove installed files
 rm -rf "$REAL_HOME/.local/share/loq-control"
 rm -f "$REAL_HOME/.local/bin/loq-control"
+rm -f /usr/local/bin/loq-control
 rm -f "$REAL_HOME/.config/systemd/user/loq-control.service"
 rm -f "$REAL_HOME/.local/share/applications/loq-control.desktop"
 rm -f /usr/local/bin/loq-helper

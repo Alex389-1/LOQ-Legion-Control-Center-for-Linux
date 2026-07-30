@@ -64,13 +64,17 @@ success "Python package installed."
 # ---------------------------------------------------------------------------
 # 2. Launcher wrapper
 # ---------------------------------------------------------------------------
-info "Creating launcher at $BIN_DIR/loq-control…"
+info "Creating launcher at /usr/local/bin/loq-control and $BIN_DIR/loq-control…"
 sudo -u "$REAL_USER" mkdir -p "$BIN_DIR"
 cat > "$BIN_DIR/loq-control" << EOF
 #!/usr/bin/env bash
 exec "$VENV_DIR/bin/python" -m loq_control.main "\$@"
 EOF
 chmod +x "$BIN_DIR/loq-control"
+
+# Create system-wide symlink in /usr/local/bin for desktop environment launchers
+ln -sf "$BIN_DIR/loq-control" /usr/local/bin/loq-control
+chmod +x /usr/local/bin/loq-control
 success "Launcher created."
 
 # ---------------------------------------------------------------------------
