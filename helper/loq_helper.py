@@ -340,6 +340,10 @@ def cmd_gpu_switch(mode: str) -> int:
         capture_output=True, text=True
     )
     if result.returncode == 0:
+        try:
+            os.sync()
+        except Exception:
+            pass
         print(f"GPU mode switched to: {mode} (via envycontrol)")
         print(result.stdout.strip())
         return 0

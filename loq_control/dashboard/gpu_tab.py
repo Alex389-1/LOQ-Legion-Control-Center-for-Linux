@@ -398,15 +398,24 @@ class GpuTab(QWidget):
 
         if should_restart:
             import os, subprocess
+            try:
+                os.sync()
+            except Exception:
+                pass
+
             if is_reboot:
-                subprocess.Popen(["systemctl", "reboot"])
+                cmd = "sync && sleep 0.5 && (systemctl reboot || loginctl reboot || reboot)"
+                subprocess.Popen(cmd, shell=True)
+                QApplication.quit()
             else:
                 session_id = os.environ.get("XDG_SESSION_ID")
                 if session_id:
-                    subprocess.Popen(["loginctl", "terminate-session", session_id])
+                    cmd = f"sync && sleep 0.5 && loginctl terminate-session {session_id}"
                 else:
                     user = os.environ.get("USER", "")
                     if user:
-                        subprocess.Popen(["loginctl", "terminate-user", user])
+                        cmd = f"sync && sleep 0.5 && loginctl terminate-user {user}"
                     else:
-                        subprocess.Popen(["systemctl", "restart", "display-manager"])
+                        cmd = "sync && sleep 0.5 && systemctl restart display-manager"
+                subprocess.Popen(cmd, shell=True)
+                QApplication.quit()
