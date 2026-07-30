@@ -12,6 +12,7 @@ loq_control.egg-info/dependency_links.txt
 loq_control.egg-info/entry_points.txt
 loq_control.egg-info/requires.txt
 loq_control.egg-info/top_level.txt
+loq_control/assets/icons/loq-control.svg
 loq_control/backend/__init__.py
 loq_control/backend/fan_control.py
 loq_control/backend/gpu_switch.py
