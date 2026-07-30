@@ -14,188 +14,172 @@ Requires-Dist: hid>=1.0.4
 
 # LOQ Control Center for Linux
 
-A unified GUI control center for **Lenovo LOQ / Legion laptops** on Linux.
+A unified, modern GUI control center and hardware inspector for **Lenovo LOQ & Legion laptops** on Linux.
 
-Monitor CPU, RAM, Disk, Intel iGPU, and NVIDIA dGPU in real time.  
-Switch power profiles. Control fan curves. Manage GPU modes. All in one place.
-
----
-
-## Features
-
-| Feature | Status |
-|---|---|
-| Live CPU/RAM/Disk monitoring | ✅ Always available |
-| NVIDIA dGPU monitoring (util, VRAM, temp, power) | ✅ If NVIDIA drivers present |
-| Intel iGPU monitoring | ✅ If `intel_gpu_top` installed |
-| Fan RPM monitoring | ✅ If `legion_laptop` module loaded |
-| Fan curve + manual control | ⚙️ Hardware-dependent (Phase 0 auto-detects) |
-| Power profile switching | ✅ If `power-profiles-daemon` running |
-| GPU mode switching (Integrated/Hybrid/Discrete) | ✅ If `envycontrol` installed |
-| System tray + background service | ✅ |
-| Privilege escalation via polkit | ✅ Root-only for fan/GPU writes |
+Built with **PySide6 / Qt6**, providing real-time hardware telemetry, per-core CPU thread inspectors, GPU mode switching, power profiles, and 4-zone RGB keyboard lighting control.
 
 ---
 
-## Quick Start
+## Highlights & Features
 
-### 1. Install system dependencies
+- **Windows Task Manager-Style Telemetry**: Real-time cubic bezier history graphs with gridlines and Y-axis scale bounds for CPU, RAM, Disk, Intel iGPU, NVIDIA dGPU, and Network I/O.
+- **Interactive Per-Core Hardware Inspector**: Click any metric card to open a high-resolution modal with individual per-core CPU thread bars (`Core 00` through `Core 15`), minimum/average/maximum statistics, and deep hardware specifications.
+- **Wi-Fi & Ethernet Network Monitoring**: Real-time download & upload speeds, interface detection (`wlan0` / `enp7s0`), IPv4 local address, and total session traffic tracking.
+- **GPU Mode Switching**: Integrated (iGPU only), Hybrid (PRIME render offload), and Discrete (NVIDIA only) switching via `envycontrol` with non-blocking initramfs rebuild dialogs.
+- **NVIDIA dGPU Telemetry**: Real-time VRAM allocation, GPU core clock, memory clock, PCIe link generation & width, thermal junction temperature, and power draw (TGP).
+- **Power Profile Management**: One-click switching between `Quiet` (Power Saver), `Balance` (Adaptive), and `Performance` with instant GUI response and live PL1/PL2/cTGP target context.
+- **ITE RGB Keyboard Control**: Full 4-zone RGB keyboard lighting control with zone selection, custom color pickers, brightness control, and quick presets.
+- **Clean Dark Design System**: Modern Zinc dark theme (`#09090b`), vector SVG icons, unified blue active states (`#3b82f6`), and dynamic status badges (`NORMAL`, `WARM`, `HOT`, `BUSY`, `SATURATED`).
 
-**Arch Linux:**
+---
+
+## Feature Overview Matrix
+
+| Component / Feature | Support | Requirements / Details |
+|---|---|---|
+| **CPU Monitoring** | ✅ Live | Clock speed, package temperature, per-core utilization |
+| **Memory & Swap** | ✅ Live | Used, available, cached, buffers, and swap breakdown |
+| **Network (Wi-Fi & Ethernet)** | ✅ Live | Download/Upload rates, active interface, IPv4 address |
+| **NVIDIA dGPU Telemetry** | ✅ Live | NVML, VRAM, GPU/Mem clocks, PCIe Gen4 link width, TGP power |
+| **Intel iGPU Telemetry** | ✅ Live | Render engine utilization via `sysfs` & `intel_gpu_top` fallback |
+| **GPU Mode Switcher** | ✅ Non-blocking | `envycontrol` backend with background initramfs rebuilding |
+| **Power Profile Switching** | ✅ Non-blocking | `power-profiles-daemon` integration with PL1/PL2 context |
+| **4-Zone RGB Keyboard** | ✅ No Root | ITE HID (`VID 048d PID c993`) via custom `udev` rules |
+| **Cooling Fan Monitoring** | ✅ Live | `legion_laptop` hwmon fan speeds (Fan 1 & Fan 2 RPMs) |
+
+---
+
+## Quick Start & Installation
+
+### 1. Prerequisites (Package Managers)
+
+**Arch Linux / EndeavourOS:**
 ```bash
 sudo pacman -S python intel-gpu-tools power-profiles-daemon
-pip install envycontrol          # GPU switching
-```
-
-**Ubuntu/Debian:**
-```bash
-sudo apt install python3 intel-gpu-tools power-profiles-daemon
 pip install envycontrol
 ```
 
-### 2. Install the legion_laptop module (recommended)
+**Ubuntu / Debian / Pop!_OS:**
+```bash
+sudo apt install python3 python3-venv intel-gpu-tools power-profiles-daemon
+pip install envycontrol
+```
 
-If your kernel doesn't already have `lenovo_wmi_*` modules, install the DKMS module from [LenovoLegionLinux](https://github.com/johnfanv2/LenovoLegionLinux).
+**Fedora:**
+```bash
+sudo dnf install python3 intel-gpu-tools power-profiles-daemon
+pip install envycontrol
+```
 
-### 3. Install LOQ Control Center
+---
+
+### 2. Single-Command Automated Installer
+
+Clone the repository and run the automated installer:
 
 ```bash
-git clone <this-repo> ~/Documents/LOQ
+git clone https://github.com/Alex389-1/LOQ-Legion-Control-Center-for-Linux.git ~/Documents/LOQ
 cd ~/Documents/LOQ
 sudo ./scripts/install.sh
 ```
 
-### 4. Run
+#### What the installer configures:
+1. Creates an isolated Python virtual environment at `~/.local/share/loq-control/venv`.
+2. Installs required dependencies (`PySide6`, `psutil`, `nvidia-ml-py`, `envycontrol`, `hid`).
+3. Installs the root-owned privileged backend helper at `/usr/local/bin/loq-helper`.
+4. Configures `/etc/sudoers.d/99-loq-control` for non-blocking sub-second helper execution.
+5. Installs `/etc/udev/rules.d/99-ite-keyboard.rules` for no-root ITE keyboard RGB access.
+6. Installs application desktop shortcut and systemd user background service.
+
+---
+
+## Running LOQ Control Center
+
+After installation, launch the application from your desktop launcher or terminal:
 
 ```bash
-loq-control                 # Start with tray icon
-loq-control --discover      # Print hardware capability matrix
-loq-control --no-tray       # Windowed mode (useful for testing)
-loq-control --debug         # Verbose logging
+loq-control                 # Start GUI in system tray / main window
+loq-control --no-tray       # Launch directly in windowed mode
+loq-control --discover      # Inspect hardware capability matrix
+loq-control --debug         # Launch with verbose logging
 ```
 
-### 5. Run as a background service
-
+### Run as a User Background Service
 ```bash
 systemctl --user start loq-control
-systemctl --user status loq-control
-journalctl --user -u loq-control -f   # View logs
+systemctl --user enable loq-control
+journalctl --user -u loq-control -f   # View background service logs
 ```
 
 ---
 
-## Architecture
+## Uninstallation
+
+To cleanly remove LOQ Control Center, sudoers rules, udev rules, and desktop integration:
+
+```bash
+sudo ./scripts/uninstall.sh
+```
+
+---
+
+## Architecture Overview
 
 ```
-loq_control/
-├── main.py           Entry point (Phase 0 + launch GUI)
-├── discovery.py      Hardware capability detection
-├── config.py         TOML config persistence
-├── app.py            QApplication + global stylesheet
-├── tray.py           System tray icon + quick menu
+LOQ/
+├── main.py                   # App entry point & Phase 0 hardware discovery
+├── discovery.py              # System & hardware capability matrix detection
+├── config.py                 # Persistent TOML configuration manager
+├── app.py                    # QApplication setup & global dark QSS theme
+├── tray.py                   # System tray icon & context menu
 ├── backend/
-│   ├── monitor.py    QThread polling (CPU/RAM/GPU/fans)
-│   ├── power_profiles.py  powerprofilesctl wrapper
-│   ├── gpu_switch.py      envycontrol/supergfxctl wrapper
-│   └── fan_control.py     sysfs hwmon fan read/write
+│   ├── monitor.py            # Real-time background telemetry polling thread
+│   ├── power_profiles.py     # power-profiles-daemon wrapper
+│   ├── gpu_switch.py         # envycontrol wrapper with non-blocking QThread
+│   ├── keyboard_light.py     # ITE HID keyboard RGB controller
+│   └── fan_control.py        # sysfs hwmon fan read/write module
 └── dashboard/
-    ├── window.py     Main QMainWindow
-    ├── monitor_tab.py   Live metrics grid
-    ├── power_tab.py     Power profile buttons
-    ├── fan_tab.py       Fan RPM + curve editor
-    ├── gpu_tab.py       GPU mode switcher
+    ├── window.py             # Frameless QMainWindow with solid opacity
+    ├── monitor_tab.py        # Task Manager-style hardware monitoring grid
+    ├── power_tab.py          # Non-blocking power profile selector
+    ├── gpu_tab.py            # GPU mode switching panel
+    ├── keyboard_tab.py       # 4-zone RGB lighting editor with preset scopes
+    ├── power_limits_tab.py   # Read-only / interactive power limit gauges
     └── widgets/
-        ├── sparkline.py    QPainter history graph
-        ├── metric_card.py  Reusable stat card
-        └── fan_curve.py    Interactive curve editor
-
-helper/
-└── loq_helper.py     Root-owned privileged helper (installed to /usr/local/bin/)
-
-polkit/
-└── com.github.loq-control.policy
-
-systemd/
-└── loq-control.service
+        ├── sparkline.py      # QPainter cubic bezier chart with gridlines
+        ├── metric_card.py    # Clickable hardware metric card container
+        ├── metric_detail_dialog.py # High-resolution interactive inspector modal
+        └── icons.py          # Vector SVG icon renderer
 ```
 
 ---
 
-## Phase 0 — Hardware Discovery
+## Hardware Discovery (`--discover`)
 
-Run this before using any hardware control features:
+To view your laptop's detected hardware capabilities, run:
 
 ```bash
 loq-control --discover
 ```
 
-Example output:
+Example Output:
 ```
 === LOQ Control Center — Capability Matrix ===
-  Kernel          : 6.9.3-arch1-1
-  CPU             : Intel(R) Core(TM) i5-13450HX
-
-  Fan module      : legion_laptop
-  Fan hwmon path  : /sys/class/hwmon/hwmon4
-  Fan RPM read    : YES
-  Fan curve read  : YES
-  Fan curve write : YES (control enabled)
-
-  Power profiles  : YES
-  Profiles        : power-saver, balanced, performance
-
-  NVIDIA (NVML)   : YES — NVIDIA GeForce RTX 4050 Laptop GPU
-  intel_gpu_top   : YES
-
-  GPU switcher    : envycontrol
-  Priv helper     : INSTALLED
+  Kernel          : 6.11.1-arch1-1
+  CPU             : 13th Gen Intel(R) Core(TM) i5-13450HX
+  Logical Cores   : 16
+  RAM Capacity    : 24.9 GB
+  NVIDIA GPU      : NVIDIA GeForce RTX 4050 Laptop GPU (Driver: 610.43.03)
+  Intel iGPU      : Intel Raptor Lake-S UHD Graphics
+  Network         : wlan0 (Wi-Fi 6) · IP: 10.181.202.18
+  Power Profiles  : YES (power-saver, balanced, performance)
+  GPU Switcher    : envycontrol
+  Priv Helper     : INSTALLED (/usr/local/bin/loq-helper)
 ==============================================
-```
-
----
-
-## Privilege Model
-
-The GUI process **never runs as root**. Hardware writes go through a minimal privileged helper:
-
-```
-GUI (unprivileged)
-    └─ pkexec /usr/local/bin/loq-helper <subcommand>
-           └─ polkit prompts once per session (auth_admin_keep)
-```
-
-The helper only accepts a whitelist of subcommands with strict input validation. No arbitrary file paths, no shell=True.
-
----
-
-## Known Limitations
-
-- **Fan curve writes**: Not functional on all LOQ BIOS versions. Run `--discover` to check. The UI shows monitoring-only mode with an explanation when unsupported.
-- **GPU power limits**: NVIDIA GPU clock/wattage is not reliably increased by `performance` mode on Linux — the UI describes this honestly rather than overpromising.
-- **GPU mode switching** requires logout (Integrated/Hybrid) or reboot (Discrete). The UI warns and offers to trigger the restart.
-
----
-
-## Config
-
-Config stored at `~/.config/loq-control/config.toml`:
-
-```toml
-[general]
-refresh_interval_ms = 1000
-restore_profile_on_login = false
-last_power_profile = "balanced"
-start_minimized = false
-
-[ui]
-x = 100
-y = 100
-width = 1100
-height = 720
 ```
 
 ---
 
 ## License
 
-GPL-3.0-or-later
+Distributed under the **GPL-3.0-or-later** License.
