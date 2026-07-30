@@ -74,6 +74,7 @@ class MetricDetailDialog(QDialog):
             "gpu_temp": "temp",
             "gpu_power": "zap",
             "disk": "monitor",
+            "net": "wifi" if self._stats.net_is_wifi else "ethernet",
             "fan1": "fan",
             "fan2": "fan",
         }.get(self._key, "monitor")
@@ -90,6 +91,7 @@ class MetricDetailDialog(QDialog):
             "gpu_temp": "NVIDIA GPU Thermal Sensor Details",
             "gpu_power": "NVIDIA GPU Power Management Details",
             "disk": "Storage Volumes & Drive Performance",
+            "net": "Wi-Fi & Ethernet Network Telemetry",
             "fan1": "Primary Cooling Fan Telemetry",
             "fan2": "Secondary Cooling Fan Telemetry",
         }.get(self._key, f"{self._key.upper()} Detailed Telemetry")
@@ -324,6 +326,7 @@ class MetricDetailDialog(QDialog):
             "igpu": "igpu",
             "gpu": "gpu_util",
             "gpu_temp": "gpu_temp",
+            "net": "net_rx",
         }.get(self._key, "cpu")
 
     def _get_spec_tuples(self) -> list[tuple[str, str]]:
@@ -405,6 +408,17 @@ class MetricDetailDialog(QDialog):
                 ("Used Space", f"{dm.used_gb:.1f} GB ({dm.percent:.1f}%)"),
                 ("Free Available Space", f"{free_gb:.1f} GB"),
                 ("Storage Drive Type", "NVMe M.2 Solid State Drive"),
+            ]
+        if self._key == "net":
+            rx_formatted = f"{self._stats.net_rx_kbps:.1f} KB/s" if self._stats.net_rx_kbps < 1024 else f"{self._stats.net_rx_kbps / 1024.0:.2f} MB/s"
+            tx_formatted = f"{self._stats.net_tx_kbps:.1f} KB/s" if self._stats.net_tx_kbps < 1024 else f"{self._stats.net_tx_kbps / 1024.0:.2f} MB/s"
+            return [
+                ("Interface Name", self._stats.net_interface),
+                ("Connection Type", "Wi-Fi Wireless 802.11" if self._stats.net_is_wifi else "Gigabit Ethernet (RJ-45)"),
+                ("IPv4 Local Address", self._stats.net_ipv4),
+                ("Receive Speed (Download)", rx_formatted),
+                ("Transmit Speed (Upload)", tx_formatted),
+                ("Link State", "Active & Online"),
             ]
         return [
             ("Component Target", self._key.upper()),

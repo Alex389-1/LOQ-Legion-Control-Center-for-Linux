@@ -16,6 +16,18 @@ SVG_ICONS: dict[str, str] = {
         '<rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/>'
         '<line x1="12" y1="17" x2="12" y2="21"/></svg>'
     ),
+    "wifi": (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" '
+        'fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/>'
+        '<path d="M5 12.85a10 10 0 0 1 14 0"/><path d="M8.5 16.88a5 5 0 0 1 7 0"/></svg>'
+    ),
+    "ethernet": (
+        '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" '
+        'fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M6 2h12a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>'
+        '<path d="M12 12v6"/><path d="M8 22h8"/><path d="M12 18v4"/></svg>'
+    ),
     "power": (
         '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" '
         'fill="none" stroke="{color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'

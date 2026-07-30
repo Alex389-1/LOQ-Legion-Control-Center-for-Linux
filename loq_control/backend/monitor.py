@@ -74,6 +74,13 @@ class SystemStats:
     fan1_rpm: int = 0
     fan2_rpm: int = 0
 
+    # Network
+    net_rx_kbps: float = 0.0
+    net_tx_kbps: float = 0.0
+    net_interface: str = "wlan0"
+    net_ipv4: str = "—"
+    net_is_wifi: bool = True
+
     # Timestamp
     timestamp: float = 0.0
 
@@ -86,6 +93,7 @@ class StatsHistory:
     gpu_util: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
     gpu_temp: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
     igpu: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
+    net_rx: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
 
     def push(self, stats: SystemStats) -> None:
         self.cpu.append(stats.cpu_percent)
@@ -98,6 +106,8 @@ class StatsHistory:
         self.gpu_temp.pop(0)
         self.igpu.append(stats.igpu_util or 0.0)
         self.igpu.pop(0)
+        self.net_rx.append(stats.net_rx_kbps)
+        self.net_rx.pop(0)
 
 
 # ---------------------------------------------------------------------------
@@ -418,6 +428,45 @@ class MonitorThread(QThread):
 
         # Intel iGPU
         stats.igpu_util = self._igpu.read_util()
+
+        # Network
+        now = stats.timestamp
+        try:
+            import socket
+            net_stats = psutil.net_if_stats()
+            net_io = psutil.net_io_counters(pernic=True)
+            net_addrs = psutil.net_if_addrs()
+
+            active_iface = None
+            for iface, st in net_stats.items():
+                if iface == "lo" or not st.isup:
+                    continue
+                active_iface = iface
+                if any(w in iface for w in ("wlan", "wlp", "wifi")):
+                    break
+
+            if active_iface and active_iface in net_io:
+                io = net_io[active_iface]
+                dt = max(now - getattr(self, "_last_net_time", now - 1.0), 0.1)
+                last_rx = getattr(self, "_last_net_rx", io.bytes_recv)
+                last_tx = getattr(self, "_last_net_tx", io.bytes_sent)
+
+                stats.net_rx_kbps = max((io.bytes_recv - last_rx) / dt / 1024.0, 0.0)
+                stats.net_tx_kbps = max((io.bytes_sent - last_tx) / dt / 1024.0, 0.0)
+                stats.net_interface = active_iface
+                stats.net_is_wifi = any(w in active_iface for w in ("wlan", "wlp", "wifi"))
+
+                if active_iface in net_addrs:
+                    for a in net_addrs[active_iface]:
+                        if a.family == socket.AF_INET:
+                            stats.net_ipv4 = a.address
+                            break
+
+                self._last_net_time = now
+                self._last_net_rx = io.bytes_recv
+                self._last_net_tx = io.bytes_sent
+        except Exception:
+            pass
 
         # Fan RPM
         stats.fan1_rpm, stats.fan2_rpm = _read_fan_rpms(self._caps.fan_hwmon_path)

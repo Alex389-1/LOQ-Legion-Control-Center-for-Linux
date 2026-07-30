@@ -129,6 +129,12 @@ class MonitorTab(QWidget):
         )
         self._disk_card._sparkline.set_color("#94a3b8")
 
+        self._net_card = MetricCard(
+            "Network", "wifi", " KB/s", warn_threshold=10000, danger_threshold=50000,
+            sparkline_color="#06b6d4"
+        )
+        self._net_card._sparkline.set_color("#06b6d4")
+
         # Connect clicked signals to opening detailed hardware dialog
         self._cpu_card.clicked.connect(lambda: self._open_detail_dialog("cpu"))
         self._ram_card.clicked.connect(lambda: self._open_detail_dialog("ram"))
@@ -137,6 +143,7 @@ class MonitorTab(QWidget):
         self._gpu_temp_card.clicked.connect(lambda: self._open_detail_dialog("gpu_temp"))
         self._gpu_power_card.clicked.connect(lambda: self._open_detail_dialog("gpu_power"))
         self._disk_card.clicked.connect(lambda: self._open_detail_dialog("disk"))
+        self._net_card.clicked.connect(lambda: self._open_detail_dialog("net"))
         if self._show_fans:
             if self._fan1_card:
                 self._fan1_card.clicked.connect(lambda: self._open_detail_dialog("fan1"))
@@ -159,7 +166,8 @@ class MonitorTab(QWidget):
             cards.append((self._pl1_card,  3, 0))
             cards.append((self._ctgp_card, 3, 1))
 
-        cards.append((self._disk_card, 4, 0, 1, 2))
+        cards.append((self._disk_card, 4, 0))
+        cards.append((self._net_card,  4, 1))
 
         for entry in cards:
             card = entry[0]
@@ -333,6 +341,22 @@ class MonitorTab(QWidget):
                 model_name=f"NVMe SSD Storage ({dm.mount})",
                 meta_text=f"Total Capacity: {dm.total_gb:.1f} GB  ·  Free Space: {free_gb:.1f} GB"
             )
+
+        # Network
+        rx_fmt = f"{stats.net_rx_kbps:.1f} KB/s" if stats.net_rx_kbps < 1024 else f"{stats.net_rx_kbps / 1024.0:.2f} MB/s"
+        tx_fmt = f"{stats.net_tx_kbps:.1f} KB/s" if stats.net_tx_kbps < 1024 else f"{stats.net_tx_kbps / 1024.0:.2f} MB/s"
+        conn_type = "Wi-Fi" if stats.net_is_wifi else "Ethernet"
+
+        self._net_card.update_value(
+            f"↓ {rx_fmt}  ↑ {tx_fmt}",
+            subtitle=f"{conn_type} ({stats.net_interface})  ·  IP: {stats.net_ipv4}",
+            push_history=stats.net_rx_kbps,
+        )
+        self._net_card.set_spec_details(
+            model_name=f"{conn_type} Adapter ({stats.net_interface})",
+            meta_text=f"IPv4 Address: {stats.net_ipv4}  ·  Download: {rx_fmt}  ·  Upload: {tx_fmt}"
+        )
+        self._net_card.set_history(history.net_rx)
 
     def _open_detail_dialog(self, key: str) -> None:
         if not hasattr(self, "_latest_stats") or self._latest_stats is None:

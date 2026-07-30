@@ -29,5 +29,7 @@ loq_control/dashboard/power_tab.py
 loq_control/dashboard/window.py
 loq_control/dashboard/widgets/__init__.py
 loq_control/dashboard/widgets/fan_curve.py
+loq_control/dashboard/widgets/icons.py
 loq_control/dashboard/widgets/metric_card.py
+loq_control/dashboard/widgets/metric_detail_dialog.py
 loq_control/dashboard/widgets/sparkline.py
