@@ -34,9 +34,11 @@ class SparklineWidget(QWidget):
         self._color = QColor(color)
         self._max_value = max_value
         self._data: list[float] = []
+        self._show_grid = True
+        self._show_axis_labels = True
 
-        self.setMinimumHeight(48)
-        self.setMinimumWidth(120)
+        self.setMinimumHeight(64)
+        self.setMinimumWidth(140)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, False)
 
@@ -63,26 +65,54 @@ class SparklineWidget(QWidget):
     # -------------------------------------------------------------------
 
     def paintEvent(self, event) -> None:  # noqa: N802
-        if len(self._data) < 2:
-            return
-
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         w = self.width()
         h = self.height()
-        pad = 2
+        pad_top = 8
+        pad_bot = 8
+        pad_left = 4
+        pad_right = 32 if self._show_axis_labels else 4
+
+        graph_w = w - pad_left - pad_right
+        graph_h = h - pad_top - pad_bot
+
+        # Draw gridlines
+        if self._show_grid:
+            grid_pen = QPen(QColor("#27272a"), 1, Qt.PenStyle.DashLine)
+            painter.setPen(grid_pen)
+            for r in (0.25, 0.5, 0.75):
+                gy = pad_top + graph_h * (1.0 - r)
+                painter.drawLine(QPointF(pad_left, gy), QPointF(w - pad_right, gy))
+
+        # Draw Y-axis labels
+        if self._show_axis_labels:
+            painter.setPen(QColor("#71717a"))
+            font = painter.font()
+            font.setPixelSize(9)
+            font.setBold(True)
+            painter.setFont(font)
+            unit_str = "%" if self._max_value == 100.0 else ""
+            max_lbl = f"{int(self._max_value)}{unit_str}"
+            min_lbl = f"0{unit_str}"
+            painter.drawText(QRectF(w - pad_right + 4, pad_top - 4, pad_right - 4, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, max_lbl)
+            painter.drawText(QRectF(w - pad_right + 4, h - pad_bot - 8, pad_right - 4, 12), Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, min_lbl)
+
+        if len(self._data) < 2:
+            painter.end()
+            return
 
         data = self._data
         n = len(data)
-        step = (w - pad * 2) / max(n - 1, 1)
+        step = graph_w / max(n - 1, 1)
 
         def _x(i: int) -> float:
-            return pad + i * step
+            return pad_left + i * step
 
         def _y(v: float) -> float:
             ratio = max(0.0, min(1.0, v / self._max_value))
-            return pad + (h - pad * 2) * (1.0 - ratio)
+            return pad_top + graph_h * (1.0 - ratio)
 
         # Build smooth path via cubic bezier
         path = QPainterPath()
@@ -98,13 +128,13 @@ class SparklineWidget(QWidget):
 
         # Filled area under curve
         fill_path = QPainterPath(path)
-        fill_path.lineTo(QPointF(points[-1].x(), h))
-        fill_path.lineTo(QPointF(points[0].x(), h))
+        fill_path.lineTo(QPointF(points[-1].x(), h - pad_bot))
+        fill_path.lineTo(QPointF(points[0].x(), h - pad_bot))
         fill_path.closeSubpath()
 
-        grad = QLinearGradient(0, 0, 0, h)
+        grad = QLinearGradient(0, pad_top, 0, h - pad_bot)
         fill_color = QColor(self._color)
-        fill_color.setAlpha(80)
+        fill_color.setAlpha(60)
         transparent = QColor(self._color)
         transparent.setAlpha(0)
         grad.setColorAt(0.0, fill_color)
@@ -113,7 +143,7 @@ class SparklineWidget(QWidget):
         painter.fillPath(fill_path, grad)
 
         # Line
-        pen = QPen(self._color, 1.5)
+        pen = QPen(self._color, 1.8)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         painter.setPen(pen)

@@ -106,6 +106,44 @@ class MetricCard(QFrame):
             self._sparkline.set_color(color)
         self._sparkline.push_value(history_val)
 
+        # Status badge update
+        if self._current_value >= self._danger:
+            self._badge_label.setText("HOT" if "°C" in self._unit else "HIGH")
+            self._badge_label.setStyleSheet(
+                "color: #f87171; background: #450a0a; border-radius: 4px; "
+                "font-size: 9px; font-weight: 700; padding: 2px 6px;"
+            )
+        elif self._current_value >= self._warn:
+            self._badge_label.setText("HIGH")
+            self._badge_label.setStyleSheet(
+                "color: #fbbf24; background: #451a03; border-radius: 4px; "
+                "font-size: 9px; font-weight: 700; padding: 2px 6px;"
+            )
+        else:
+            self._badge_label.setText("NORMAL")
+            self._badge_label.setStyleSheet(
+                "color: #34d399; background: #064e3b; border-radius: 4px; "
+                "font-size: 9px; font-weight: 700; padding: 2px 6px;"
+            )
+
+    def set_spec_details(self, model_name: str = "", meta_text: str = "") -> None:
+        has_content = False
+        if model_name:
+            self._model_lbl.setText(model_name)
+            self._model_lbl.show()
+            has_content = True
+        else:
+            self._model_lbl.hide()
+
+        if meta_text:
+            self._meta_lbl.setText(meta_text)
+            self._meta_lbl.show()
+            has_content = True
+        else:
+            self._meta_lbl.hide()
+
+        self._details_frame.setVisible(has_content)
+
     def set_history(self, data: list[float]) -> None:
         self._sparkline.set_data(data)
 
@@ -158,6 +196,14 @@ class MetricCard(QFrame):
         )
         header.addWidget(title_lbl)
         header.addStretch()
+
+        # Status badge
+        self._badge_label = QLabel("NORMAL")
+        self._badge_label.setStyleSheet(
+            "color: #34d399; background: #064e3b; border-radius: 4px; "
+            "font-size: 9px; font-weight: 700; padding: 2px 6px;"
+        )
+        header.addWidget(self._badge_label)
         root.addLayout(header)
 
         # Primary value
@@ -178,3 +224,30 @@ class MetricCard(QFrame):
         spark_color = self._sparkline_color or _COLOR_GOOD
         self._sparkline = SparklineWidget(color=spark_color, max_value=100.0)
         root.addWidget(self._sparkline)
+
+        # Specs / Metadata Details Frame
+        self._details_frame = QFrame()
+        self._details_frame.setStyleSheet("""
+            QFrame {
+                background: #09090b;
+                border: 1px solid #27272a;
+                border-radius: 6px;
+            }
+        """)
+        self._details_layout = QVBoxLayout(self._details_frame)
+        self._details_layout.setContentsMargins(8, 6, 8, 6)
+        self._details_layout.setSpacing(2)
+
+        self._model_lbl = QLabel("")
+        self._model_lbl.setStyleSheet("color: #3b82f6; font-size: 11px; font-weight: 600;")
+        self._model_lbl.hide()
+        self._details_layout.addWidget(self._model_lbl)
+
+        self._meta_lbl = QLabel("")
+        self._meta_lbl.setStyleSheet("color: #a1a1aa; font-size: 10px;")
+        self._meta_lbl.setWordWrap(True)
+        self._meta_lbl.hide()
+        self._details_layout.addWidget(self._meta_lbl)
+
+        self._details_frame.hide()
+        root.addWidget(self._details_frame)

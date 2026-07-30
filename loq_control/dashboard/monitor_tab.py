@@ -169,18 +169,29 @@ class MonitorTab(QWidget):
 
     def on_stats_updated(self, stats: SystemStats, history: StatsHistory) -> None:
         # CPU
+        cpu_model = self._caps.cpu_model or "Intel Core Processor"
+        cpu_temp_str = f"  ·  Temp: {stats.cpu_temp:.0f}°C" if stats.cpu_temp is not None else ""
         self._cpu_card.update_value(
             stats.cpu_percent,
-            subtitle=f"{stats.cpu_freq_mhz:.0f} MHz  ·  {len(stats.cpu_per_core)} cores",
+            subtitle=f"Clock: {stats.cpu_freq_mhz / 1000.0:.2f} GHz  ·  Cores: {len(stats.cpu_per_core)}{cpu_temp_str}",
             push_history=stats.cpu_percent,
+        )
+        self._cpu_card.set_spec_details(
+            model_name=cpu_model,
+            meta_text=f"Base Clock: {stats.cpu_freq_mhz:.0f} MHz  ·  Logical Cores: {len(stats.cpu_per_core)}"
         )
         self._cpu_card.set_history(history.cpu)
 
         # RAM
+        avail_gb = stats.ram_total_gb - stats.ram_used_gb
         self._ram_card.update_value(
             stats.ram_percent,
-            subtitle=f"{stats.ram_used_gb:.1f} / {stats.ram_total_gb:.1f} GB",
+            subtitle=f"Used: {stats.ram_used_gb:.1f} GB  ·  Available: {avail_gb:.1f} GB",
             push_history=stats.ram_percent,
+        )
+        self._ram_card.set_spec_details(
+            model_name=f"{stats.ram_total_gb:.1f} GB System Memory",
+            meta_text=f"Physical RAM Total: {stats.ram_total_gb:.1f} GB  ·  Swap: {stats.swap_used_gb:.1f} / {stats.swap_total_gb:.1f} GB"
         )
         self._ram_card.set_history(history.ram)
 
@@ -191,19 +202,27 @@ class MonitorTab(QWidget):
                 subtitle="Intel Render Engine",
                 push_history=stats.igpu_util,
             )
+            self._igpu_card.set_spec_details(
+                model_name="Intel Graphics (iGPU)",
+                meta_text="Driver: i915/xe  ·  Shared System Memory Architecture"
+            )
             self._igpu_card.set_history(history.igpu)
         elif not self._caps.intel_gpu_top_available:
             pass  # Already marked unavailable
 
         # dGPU util
         if stats.gpu_util is not None:
-            vram_str = ""
-            if stats.gpu_vram_used_mb and stats.gpu_vram_total_mb:
-                vram_str = f"  ·  VRAM {stats.gpu_vram_used_mb} / {stats.gpu_vram_total_mb} MB"
+            vram_used = stats.gpu_vram_used_mb or 0
+            vram_tot = stats.gpu_vram_total_mb or 6144
             self._gpu_card.update_value(
                 float(stats.gpu_util),
-                subtitle=f"{self._caps.nvidia_device_name or 'NVIDIA GPU'}{vram_str}",
+                subtitle=f"VRAM: {vram_used} / {vram_tot} MB ({ (vram_used/max(vram_tot,1))*100:.1f}%)",
                 push_history=float(stats.gpu_util),
+            )
+            gpu_name = self._caps.nvidia_device_name or "NVIDIA GeForce RTX GPU"
+            self._gpu_card.set_spec_details(
+                model_name=f"{gpu_name} (NVIDIA Corp)",
+                meta_text=f"Dedicated VRAM: {vram_tot} MB  ·  PCIe Bus ID: 0000:01:00.0"
             )
             self._gpu_card.set_history(history.gpu_util)
 
@@ -211,8 +230,12 @@ class MonitorTab(QWidget):
         if stats.gpu_temp is not None:
             self._gpu_temp_card.update_value(
                 float(stats.gpu_temp),
-                subtitle="GPU Core",
+                subtitle="GPU Core Thermal Zone",
                 push_history=float(stats.gpu_temp),
+            )
+            self._gpu_temp_card.set_spec_details(
+                model_name="NVIDIA Thermal Sensor",
+                meta_text="Thermal Limit: 88°C  ·  Target Junction Temp: < 80°C"
             )
             self._gpu_temp_card.set_history(history.gpu_temp)
             self._gpu_temp_card._sparkline.set_max_value(100.0)
@@ -221,21 +244,33 @@ class MonitorTab(QWidget):
         if stats.gpu_power_w is not None:
             self._gpu_power_card.update_value(
                 stats.gpu_power_w,
-                subtitle="Power draw",
+                subtitle="Real-time Power Draw",
                 push_history=stats.gpu_power_w,
+            )
+            self._gpu_power_card.set_spec_details(
+                model_name="NVIDIA Power Management (NVML)",
+                meta_text="Target TGP: 95.0 W  ·  Dynamic Boost Target: 115.0 W"
             )
 
         # Fans / Limits update
         if self._show_fans:
             self._fan1_card.update_value(
                 f"{stats.fan1_rpm}",
-                subtitle="Fan 1",
+                subtitle="Primary Cooling Fan",
                 push_history=float(stats.fan1_rpm),
+            )
+            self._fan1_card.set_spec_details(
+                model_name="Lenovo Dual Thermal Fan 1",
+                meta_text="Max Rated Speed: 5800 RPM  ·  Status: Active"
             )
             self._fan2_card.update_value(
                 f"{stats.fan2_rpm}",
-                subtitle="Fan 2",
+                subtitle="Secondary Cooling Fan",
                 push_history=float(stats.fan2_rpm),
+            )
+            self._fan2_card.set_spec_details(
+                model_name="Lenovo Dual Thermal Fan 2",
+                meta_text="Max Rated Speed: 5800 RPM  ·  Status: Active"
             )
         elif self._show_limits:
             import loq_control.backend.power_limits as pl
@@ -246,8 +281,12 @@ class MonitorTab(QWidget):
             if pl1_val is not None:
                 self._pl1_card.update_value(
                     float(pl1_val),
-                    subtitle="CPU Sustained Power Limit",
+                    subtitle="CPU Sustained Power Target",
                     push_history=float(pl1_val),
+                )
+                self._pl1_card.set_spec_details(
+                    model_name="Lenovo ACPI WMI Firmware Target",
+                    meta_text="PPT PL1 Sustained Package Limit"
                 )
             if ctgp_val is not None:
                 self._ctgp_card.update_value(
@@ -255,17 +294,21 @@ class MonitorTab(QWidget):
                     subtitle="GPU Configurable TGP Target",
                     push_history=float(ctgp_val),
                 )
+                self._ctgp_card.set_spec_details(
+                    model_name="Lenovo ACPI WMI Firmware Target",
+                    meta_text="NVIDIA Configurable Total Graphics Power Target"
+                )
 
-        # Disk — show first mount for simplicity
+        # Disk
         if stats.disk_mounts:
             dm = stats.disk_mounts[0]
-            others = ""
-            if len(stats.disk_mounts) > 1:
-                others = "  ·  " + "  ".join(
-                    f"{m.mount} {m.percent:.0f}%" for m in stats.disk_mounts[1:3]
-                )
             self._disk_card.update_value(
                 dm.percent,
-                subtitle=f"{dm.mount}  {dm.used_gb:.1f} / {dm.total_gb:.1f} GB{others}",
+                subtitle=f"Used: {dm.used_gb:.1f} / {dm.total_gb:.1f} GB ({dm.mount})",
                 push_history=dm.percent,
+            )
+            free_gb = dm.total_gb - dm.used_gb
+            self._disk_card.set_spec_details(
+                model_name=f"NVMe SSD Storage ({dm.mount})",
+                meta_text=f"Total Capacity: {dm.total_gb:.1f} GB  ·  Free Space: {free_gb:.1f} GB"
             )

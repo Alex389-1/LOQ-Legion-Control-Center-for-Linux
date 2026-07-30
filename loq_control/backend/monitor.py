@@ -47,6 +47,7 @@ class SystemStats:
     cpu_percent: float = 0.0
     cpu_per_core: list[float] = field(default_factory=list)
     cpu_freq_mhz: float = 0.0
+    cpu_temp: float | None = None
 
     # RAM
     ram_used_gb: float = 0.0
@@ -198,8 +199,37 @@ class _IntelGpuReader:
 
 
 # ---------------------------------------------------------------------------
-# Fan sysfs reader
+# CPU & Fan sysfs readers
 # ---------------------------------------------------------------------------
+
+def _read_cpu_temp() -> float | None:
+    try:
+        temps = psutil.sensors_temperatures()
+        if "coretemp" in temps and temps["coretemp"]:
+            for item in temps["coretemp"]:
+                if "Package" in item.label or item.label == "":
+                    return item.current
+            return temps["coretemp"][0].current
+        if "cpu_thermal" in temps and temps["cpu_thermal"]:
+            return temps["cpu_thermal"][0].current
+        if "k10temp" in temps and temps["k10temp"]:
+            return temps["k10temp"][0].current
+    except Exception:
+        pass
+
+    for zone in glob.glob("/sys/class/thermal/thermal_zone*"):
+        p = Path(zone)
+        type_f = p / "type"
+        temp_f = p / "temp"
+        if type_f.exists() and temp_f.exists():
+            try:
+                t_type = type_f.read_text().strip().lower()
+                if t_type in ("x86_pkg_temp", "tcpu", "coretemp", "cpu_thermal"):
+                    return float(temp_f.read_text().strip()) / 1000.0
+            except Exception:
+                pass
+    return None
+
 
 def _read_fan_rpms(hwmon_path: Path | None) -> tuple[int, int]:
     if hwmon_path is None:
@@ -348,6 +378,7 @@ class MonitorThread(QThread):
         stats.cpu_percent = sum(per_core) / len(per_core) if per_core else 0.0
         freq = psutil.cpu_freq()
         stats.cpu_freq_mhz = freq.current if freq else 0.0
+        stats.cpu_temp = _read_cpu_temp()
 
         # RAM
         mem = psutil.virtual_memory()
