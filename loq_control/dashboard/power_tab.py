@@ -12,16 +12,17 @@ from PySide6.QtWidgets import (
     QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
 
+from loq_control.dashboard.widgets.icons import get_icon
 import loq_control.backend.power_profiles as pp
 
 if TYPE_CHECKING:
     from loq_control.discovery import Capabilities
 
 _PROFILE_ORDER = ["power-saver", "balanced", "performance"]
-_PROFILE_ICONS = {
-    "power-saver": "🍃",
-    "balanced": "⚖️",
-    "performance": "⚡",
+_PROFILE_SVG_KEYS = {
+    "power-saver": "leaf",
+    "balanced": "scale",
+    "performance": "zap",
 }
 
 
@@ -59,8 +60,7 @@ class _ProfileButton(QPushButton):
     """
 
     def __init__(self, profile: str, parent: QWidget | None = None) -> None:
-        label = f"{_PROFILE_ICONS.get(profile, '●')}  {pp.label_for(profile)}"
-        super().__init__(label, parent)
+        super().__init__(pp.label_for(profile), parent)
         self._profile = profile
         self.setCheckable(True)
         self.setMinimumHeight(80)
@@ -70,6 +70,9 @@ class _ProfileButton(QPushButton):
     def set_active(self, active: bool) -> None:
         self.setChecked(active)
         self.setStyleSheet(self.ACTIVE_STYLE if active else self.INACTIVE_STYLE)
+        color = "#3b82f6" if active else "#a1a1aa"
+        svg_name = _PROFILE_SVG_KEYS.get(self._profile, "power")
+        self.setIcon(get_icon(svg_name, 20, color=color))
 
 
 class PowerTab(QWidget):

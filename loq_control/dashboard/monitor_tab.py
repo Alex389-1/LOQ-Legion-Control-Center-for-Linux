@@ -43,20 +43,20 @@ class MonitorTab(QWidget):
 
         # --- CPU ---
         self._cpu_card = MetricCard(
-            "CPU", "🖥️", "%", warn_threshold=60, danger_threshold=85,
+            "CPU", "cpu", "%", warn_threshold=60, danger_threshold=85,
             sparkline_color=None
         )
 
         # --- RAM ---
         self._ram_card = MetricCard(
-            "Memory", "🧮", "%", warn_threshold=70, danger_threshold=90,
+            "Memory", "memory", "%", warn_threshold=70, danger_threshold=90,
             sparkline_color="#a78bfa"
         )
         self._ram_card._sparkline.set_color("#a78bfa")
 
         # --- iGPU ---
         self._igpu_card = MetricCard(
-            "Intel iGPU", "🔷", "%", warn_threshold=70, danger_threshold=90,
+            "Intel iGPU", "integrated", "%", warn_threshold=70, danger_threshold=90,
             sparkline_color="#38bdf8"
         )
         self._igpu_card._sparkline.set_color("#38bdf8")
@@ -65,16 +65,16 @@ class MonitorTab(QWidget):
 
         # --- dGPU ---
         self._gpu_card = MetricCard(
-            "NVIDIA dGPU", "🟢", "%", warn_threshold=70, danger_threshold=90,
-            sparkline_color="#22c55e"
+            "NVIDIA dGPU", "gpu", "%", warn_threshold=70, danger_threshold=90,
+            sparkline_color="#10b981"
         )
-        self._gpu_card._sparkline.set_color("#22c55e")
+        self._gpu_card._sparkline.set_color("#10b981")
         if not self._caps.nvidia_available:
             self._gpu_card.set_unavailable("NVML not available or GPU not detected")
 
         # --- GPU Temp ---
         self._gpu_temp_card = MetricCard(
-            "GPU Temp", "🌡️", "°C", warn_threshold=70, danger_threshold=88,
+            "GPU Temp", "temp", "°C", warn_threshold=70, danger_threshold=88,
             sparkline_color="#f59e0b"
         )
         self._gpu_temp_card._sparkline.set_color("#f59e0b")
@@ -83,7 +83,7 @@ class MonitorTab(QWidget):
 
         # --- GPU Power ---
         self._gpu_power_card = MetricCard(
-            "GPU Power", "⚡", "W", warn_threshold=80, danger_threshold=115,
+            "GPU Power", "zap", "W", warn_threshold=80, danger_threshold=115,
             sparkline_color="#fb923c"
         )
         self._gpu_power_card._sparkline.set_color("#fb923c")
@@ -97,24 +97,24 @@ class MonitorTab(QWidget):
 
         if self._show_fans:
             self._fan1_card = MetricCard(
-                "Fan 1", "🌀", " RPM", warn_threshold=99999, danger_threshold=99999, sparkline_color="#64748b"
+                "Fan 1", "fan", " RPM", warn_threshold=99999, danger_threshold=99999, sparkline_color="#64748b"
             )
             self._fan1_card._sparkline.set_max_value(6000.0)
             self._fan1_card._sparkline.set_color("#64748b")
             self._fan2_card = MetricCard(
-                "Fan 2", "🌀", " RPM", warn_threshold=99999, danger_threshold=99999, sparkline_color="#475569"
+                "Fan 2", "fan", " RPM", warn_threshold=99999, danger_threshold=99999, sparkline_color="#475569"
             )
             self._fan2_card._sparkline.set_max_value(6000.0)
             self._fan2_card._sparkline.set_color("#475569")
         elif self._show_limits:
             self._pl1_card = MetricCard(
-                "CPU PL1 Target", "🔋", " W", warn_threshold=999, danger_threshold=999, sparkline_color="#e8182c"
+                "CPU PL1 Target", "limits", " W", warn_threshold=999, danger_threshold=999, sparkline_color="#3b82f6"
             )
-            self._pl1_card._sparkline.set_color("#e8182c")
+            self._pl1_card._sparkline.set_color("#3b82f6")
             self._pl1_card._sparkline.set_max_value(120.0)
 
             self._ctgp_card = MetricCard(
-                "GPU cTGP Target", "⚡", " W", warn_threshold=999, danger_threshold=999, sparkline_color="#38bdf8"
+                "GPU cTGP Target", "zap", " W", warn_threshold=999, danger_threshold=999, sparkline_color="#38bdf8"
             )
             self._ctgp_card._sparkline.set_color("#38bdf8")
             self._ctgp_card._sparkline.set_max_value(120.0)
@@ -124,7 +124,7 @@ class MonitorTab(QWidget):
 
         # --- Disk mounts placeholder ---
         self._disk_card = MetricCard(
-            "Disk", "💾", "%", warn_threshold=75, danger_threshold=90,
+            "Disk", "monitor", "%", warn_threshold=75, danger_threshold=90,
             sparkline_color="#94a3b8"
         )
         self._disk_card._sparkline.set_color("#94a3b8")

@@ -14,17 +14,17 @@ from PySide6.QtWidgets import (
     QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
 
+from loq_control.dashboard.widgets.icons import get_icon
 import loq_control.backend.gpu_switch as gs
 
 if TYPE_CHECKING:
     from loq_control.discovery import Capabilities
 
 _MODES = ["integrated", "hybrid", "nvidia"]
-
-_MODE_ICONS = {
-    "integrated": "🔷",
-    "hybrid": "⚡",
-    "nvidia": "🟢",
+_MODE_SVG_KEYS = {
+    "integrated": "integrated",
+    "hybrid": "hybrid",
+    "nvidia": "nvidia",
 }
 
 _BTN_INACTIVE = """
@@ -234,9 +234,9 @@ class GpuTab(QWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(12)
         for mode in _MODES:
-            label = f"{_MODE_ICONS[mode]}\n\n{gs.MODE_LABELS[mode]}"
-            btn = QPushButton(label)
-            btn.setMinimumHeight(100)
+            btn = QPushButton(gs.MODE_LABELS[mode])
+            btn.setIcon(get_icon(_MODE_SVG_KEYS[mode], 22, color="#a1a1aa"))
+            btn.setMinimumHeight(80)
             btn.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
             btn.setStyleSheet(_BTN_INACTIVE.format())
             btn.clicked.connect(lambda checked, m=mode: self._on_mode_clicked(m))
@@ -277,10 +277,12 @@ class GpuTab(QWidget):
         for m, btn in self._buttons.items():
             if m == mode:
                 btn.setStyleSheet(_BTN_ACTIVE.format(color=color))
+                btn.setIcon(get_icon(_MODE_SVG_KEYS.get(m, "gpu"), 22, color="#f4f4f5"))
             else:
                 btn.setStyleSheet(_BTN_INACTIVE.format())
+                btn.setIcon(get_icon(_MODE_SVG_KEYS.get(m, "gpu"), 22, color="#a1a1aa"))
         self._mode_title.setText(
-            f"Current: {_MODE_ICONS.get(mode, '')} {gs.MODE_LABELS.get(mode, mode)}"
+            f"Current: {gs.MODE_LABELS.get(mode, mode)}"
         )
         self._mode_desc.setText(gs.MODE_DESCRIPTIONS.get(mode, ""))
 

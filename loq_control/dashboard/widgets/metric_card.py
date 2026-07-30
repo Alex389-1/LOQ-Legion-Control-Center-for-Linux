@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget,
 )
 
+from loq_control.dashboard.widgets.icons import SVG_ICONS, get_pixmap
 from loq_control.dashboard.widgets.sparkline import SparklineWidget
 
 # Threshold colors
@@ -141,9 +142,14 @@ class MetricCard(QFrame):
         header = QHBoxLayout()
         header.setSpacing(8)
 
-        icon_lbl = QLabel(icon)
-        icon_lbl.setStyleSheet("font-size: 18px;")
-        icon_lbl.setFixedWidth(26)
+        icon_lbl = QLabel()
+        spark_color = self._sparkline_color or _COLOR_GOOD
+        if icon in SVG_ICONS:
+            icon_lbl.setPixmap(get_pixmap(icon, 18, color=spark_color))
+        else:
+            icon_lbl.setText(icon)
+            icon_lbl.setStyleSheet("font-size: 18px;")
+        icon_lbl.setFixedWidth(24)
         header.addWidget(icon_lbl)
 
         title_lbl = QLabel(self._title.upper())

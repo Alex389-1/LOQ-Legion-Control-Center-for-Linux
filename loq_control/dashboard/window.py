@@ -20,6 +20,7 @@ from loq_control.dashboard.keyboard_tab import KeyboardTab
 from loq_control.dashboard.monitor_tab import MonitorTab
 from loq_control.dashboard.power_limits_tab import PowerLimitsTab
 from loq_control.dashboard.power_tab import PowerTab
+from loq_control.dashboard.widgets.icons import get_icon
 import loq_control.config as cfg_mod
 
 if TYPE_CHECKING:
@@ -111,12 +112,12 @@ class DashboardWindow(QMainWindow):
         self._gpu_tab = GpuTab(self._caps)
         self._keyboard_tab = KeyboardTab(self._caps)
 
-        self._tabs.addTab(self._monitor_tab,       "📊  Monitor")
-        self._tabs.addTab(self._power_tab,          "⚡  Power")
-        self._tabs.addTab(self._power_limits_tab,   "🔋  Limits")
-        self._tabs.addTab(self._fan_tab,            "🌀  Fan")
-        self._tabs.addTab(self._gpu_tab,            "🎮  GPU Mode")
-        self._tabs.addTab(self._keyboard_tab,       "⌨️  Lighting")
+        self._tabs.addTab(self._monitor_tab,       get_icon("monitor", 16, "#a1a1aa"), "Monitor")
+        self._tabs.addTab(self._power_tab,          get_icon("power", 16, "#a1a1aa"), "Power")
+        self._tabs.addTab(self._power_limits_tab,   get_icon("limits", 16, "#a1a1aa"), "Limits")
+        self._tabs.addTab(self._fan_tab,            get_icon("fan", 16, "#a1a1aa"), "Fan")
+        self._tabs.addTab(self._gpu_tab,            get_icon("gpu", 16, "#a1a1aa"), "GPU Mode")
+        self._tabs.addTab(self._keyboard_tab,       get_icon("keyboard", 16, "#a1a1aa"), "Lighting")
 
         root.addWidget(self._tabs)
 

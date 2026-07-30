@@ -263,12 +263,12 @@ class KeyboardTab(QWidget):
         preset_layout.addWidget(preset_lbl)
 
         presets = [
-            ("🔴 Red",    (255, 0,   0)),
-            ("🟢 Green",  (0,   255, 0)),
-            ("🔵 Blue",   (0,   0,   255)),
-            ("⚪ White",  (255, 255, 255)),
-            ("🟠 Orange", (255, 100, 0)),
-            ("🟣 Purple", (128, 0,   255)),
+            ("Red",    (255, 0,   0)),
+            ("Green",  (0,   255, 0)),
+            ("Blue",   (0,   0,   255)),
+            ("White",  (255, 255, 255)),
+            ("Orange", (255, 100, 0)),
+            ("Purple", (128, 0,   255)),
         ]
         for label, (r, g, b) in presets:
             btn = QPushButton(label)
