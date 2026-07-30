@@ -122,12 +122,25 @@ class MonitorTab(QWidget):
             self._fan1_card = None
             self._fan2_card = None
 
-        # --- Disk mounts placeholder ---
         self._disk_card = MetricCard(
             "Disk", "monitor", "%", warn_threshold=75, danger_threshold=90,
             sparkline_color="#94a3b8"
         )
         self._disk_card._sparkline.set_color("#94a3b8")
+
+        # Connect clicked signals to opening detailed hardware dialog
+        self._cpu_card.clicked.connect(lambda: self._open_detail_dialog("cpu"))
+        self._ram_card.clicked.connect(lambda: self._open_detail_dialog("ram"))
+        self._igpu_card.clicked.connect(lambda: self._open_detail_dialog("igpu"))
+        self._gpu_card.clicked.connect(lambda: self._open_detail_dialog("gpu"))
+        self._gpu_temp_card.clicked.connect(lambda: self._open_detail_dialog("gpu_temp"))
+        self._gpu_power_card.clicked.connect(lambda: self._open_detail_dialog("gpu_power"))
+        self._disk_card.clicked.connect(lambda: self._open_detail_dialog("disk"))
+        if self._show_fans:
+            if self._fan1_card:
+                self._fan1_card.clicked.connect(lambda: self._open_detail_dialog("fan1"))
+            if self._fan2_card:
+                self._fan2_card.clicked.connect(lambda: self._open_detail_dialog("fan2"))
 
         # --- Layout (2-column responsive grid) ---
         cards = [
@@ -168,6 +181,9 @@ class MonitorTab(QWidget):
     # ------------------------------------------------------------------
 
     def on_stats_updated(self, stats: SystemStats, history: StatsHistory) -> None:
+        self._latest_stats = stats
+        self._latest_history = history
+
         # CPU
         cpu_model = self._caps.cpu_model or "Intel Core Processor"
         cpu_temp_str = f"  ·  Temp: {stats.cpu_temp:.0f}°C" if stats.cpu_temp is not None else ""
@@ -312,3 +328,10 @@ class MonitorTab(QWidget):
                 model_name=f"NVMe SSD Storage ({dm.mount})",
                 meta_text=f"Total Capacity: {dm.total_gb:.1f} GB  ·  Free Space: {free_gb:.1f} GB"
             )
+
+    def _open_detail_dialog(self, key: str) -> None:
+        if not hasattr(self, "_latest_stats") or self._latest_stats is None:
+            return
+        from loq_control.dashboard.widgets.metric_detail_dialog import MetricDetailDialog
+        dlg = MetricDetailDialog(key, self._latest_stats, self._latest_history, self._caps, parent=self)
+        dlg.exec()

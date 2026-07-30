@@ -6,7 +6,7 @@ Color-codes the value ring based on severity thresholds.
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QSizePolicy, QVBoxLayout, QWidget,
@@ -32,18 +32,7 @@ def _threshold_color(value: float, warn: float = 60.0, danger: float = 85.0) -> 
 
 
 class MetricCard(QFrame):
-    """
-    A styled card showing a hardware metric with history sparkline.
-
-    Parameters
-    ----------
-    title : str          Card title (e.g. "CPU")
-    icon  : str          Single emoji or unicode symbol
-    unit  : str          Unit appended to primary value
-    warn_threshold : float
-    danger_threshold : float
-    sparkline_color : str   Override sparkline color; if None, tracks threshold
-    """
+    clicked = Signal()
 
     def __init__(
         self,
@@ -62,8 +51,14 @@ class MetricCard(QFrame):
         self._danger = danger_threshold
         self._sparkline_color = sparkline_color
         self._current_value: float = 0.0
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._build_ui(icon)
+
+    def mousePressEvent(self, event) -> None:  # noqa: N802
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mousePressEvent(event)
 
     # ------------------------------------------------------------------
     # Public API
