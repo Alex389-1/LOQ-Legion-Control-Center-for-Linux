@@ -130,6 +130,7 @@ class _ConfirmDialog(QDialog):
         self._reboot_check = QCheckBox(
             f"{'Reboot' if self._reboot else 'Log out'} automatically after applying"
         )
+        self._reboot_check.setChecked(True)
         self._reboot_check.setStyleSheet("color: #a1a1aa; font-size: 12px;")
         layout.addWidget(self._reboot_check)
 
@@ -396,7 +397,18 @@ class GpuTab(QWidget):
         for btn in self._buttons.values():
             btn.setDisabled(True)
 
-        if should_restart:
+        from PySide6.QtWidgets import QMessageBox
+        action_name = "reboot" if is_reboot else "logout"
+        msg = QMessageBox(self)
+        msg.setWindowTitle("GPU Switch Applied")
+        msg.setText(f"GPU mode switch to '{gs.MODE_LABELS.get(mode, mode)}' was applied successfully!\n\nA {action_name} is required to complete the switch.")
+        msg.setIcon(QMessageBox.Icon.Information)
+        reboot_btn = msg.addButton(f"{action_name.capitalize()} Now", QMessageBox.ButtonRole.AcceptRole)
+        later_btn = msg.addButton("Restart Later", QMessageBox.ButtonRole.RejectRole)
+        msg.setDefaultButton(reboot_btn)
+        msg.exec()
+
+        if msg.clickedButton() == reboot_btn or should_restart:
             import os, subprocess
             try:
                 os.sync()
