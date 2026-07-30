@@ -151,7 +151,19 @@ info "Installing .desktop file…"
 sudo -u "$REAL_USER" mkdir -p "$DESKTOP_DIR"
 cp "$PROJECT_DIR/desktop/loq-control.desktop" "$DESKTOP_DIR/"
 sudo -u "$REAL_USER" update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
-success ".desktop file installed."
+
+# Install logo icons
+ICON_USER_DIR="$REAL_HOME/.local/share/icons/hicolor/256x256/apps"
+sudo -u "$REAL_USER" mkdir -p "$ICON_USER_DIR"
+cp "$PROJECT_DIR/loq_control/assets/icons/loq-control.png" "$ICON_USER_DIR/loq-control.png"
+
+SYS_ICON_DIR="/usr/share/icons/hicolor/256x256/apps"
+mkdir -p "$SYS_ICON_DIR"
+cp "$PROJECT_DIR/loq_control/assets/icons/loq-control.png" "$SYS_ICON_DIR/loq-control.png"
+
+gtk-update-icon-cache -f "$REAL_HOME/.local/share/icons/hicolor" 2>/dev/null || true
+gtk-update-icon-cache -f "/usr/share/icons/hicolor" 2>/dev/null || true
+success ".desktop file and logo icons installed."
 
 # ---------------------------------------------------------------------------
 # 7. Config dir

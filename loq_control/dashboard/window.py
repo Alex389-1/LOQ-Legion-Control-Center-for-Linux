@@ -139,8 +139,13 @@ class DashboardWindow(QMainWindow):
         layout.setSpacing(8)
 
         # Logo + title
-        logo = QLabel("◈")
-        logo.setStyleSheet("color: #3b82f6; font-size: 18px; font-weight: 700;")
+        logo = QLabel()
+        icon_path = Path(__file__).parent.parent / "assets" / "icons" / "loq-control.png"
+        if icon_path.exists():
+            logo.setPixmap(QPixmap(str(icon_path)).scaled(20, 20, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        else:
+            logo.setText("◈")
+            logo.setStyleSheet("color: #3b82f6; font-size: 18px; font-weight: 700;")
         layout.addWidget(logo)
 
         title = QLabel("LOQ Control Center")

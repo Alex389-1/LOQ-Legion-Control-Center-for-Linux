@@ -122,6 +122,12 @@ def create_application(argv: list[str] | None = None) -> QApplication:
     app.setOrganizationName("loq-control")
     app.setQuitOnLastWindowClosed(False)
 
+    from pathlib import Path
+    from PySide6.QtGui import QIcon
+    icon_path = Path(__file__).parent / "assets" / "icons" / "loq-control.png"
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
+
     # Load Inter font if available (downloaded by install.sh)
     # Falls back to system sans-serif
     import importlib.resources
