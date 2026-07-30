@@ -170,3 +170,9 @@ Example Output:
 ## License
 
 Distributed under the **GPL-3.0-or-later** License.
+
+---
+
+## Author & Credit
+
+Made with ❤️ by **ALEX** ([@Alex389-1](https://github.com/Alex389-1))
