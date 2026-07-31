@@ -104,6 +104,34 @@ class PowerTab(QWidget):
         title.setStyleSheet("color: #f0f0f2; font-size: 18px; font-weight: 700;")
         root.addWidget(title)
 
+        # Power Source Badge / Status Card (AC Adapter vs Battery)
+        self._power_source_frame = QFrame()
+        self._power_source_frame.setStyleSheet(
+            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
+        )
+        ps_layout = QHBoxLayout(self._power_source_frame)
+        ps_layout.setContentsMargins(16, 12, 16, 12)
+        ps_layout.setSpacing(12)
+
+        self._power_source_icon = QLabel("⚡")
+        self._power_source_icon.setStyleSheet("font-size: 16px;")
+
+        self._power_source_text = QLabel("Power Source: Detecting…")
+        self._power_source_text.setStyleSheet("color: #f4f4f5; font-size: 13px; font-weight: 600;")
+
+        self._power_source_badge = QLabel("DETECTING")
+        self._power_source_badge.setStyleSheet(
+            "color: #3b82f6; background: #1e3a8a; border: 1px solid #2563eb; "
+            "border-radius: 6px; font-size: 11px; font-weight: 600; padding: 3px 8px;"
+        )
+
+        ps_layout.addWidget(self._power_source_icon)
+        ps_layout.addWidget(self._power_source_text)
+        ps_layout.addStretch()
+        ps_layout.addWidget(self._power_source_badge)
+
+        root.addWidget(self._power_source_frame)
+
         if not self._caps.power_profiles_available:
             warn = QLabel(
                 "⚠️  power-profiles-daemon is not running or powerprofilesctl is not installed.\n"
@@ -224,6 +252,27 @@ class PowerTab(QWidget):
         self._status_label.setText(
             f"Active: {pp.label_for(profile)}  ·  Changes apply system-wide"
         )
+
+    def on_stats_updated(self, stats: any) -> None:
+        if hasattr(stats, "power_plugged") and stats.power_plugged is not None:
+            if stats.power_plugged:
+                self._power_source_icon.setText("⚡")
+                pct_str = f" ({stats.battery_percent:.0f}%)" if getattr(stats, "battery_percent", None) is not None else ""
+                self._power_source_text.setText(f"Power Source: AC Adapter Connected{pct_str}")
+                self._power_source_badge.setText("AC ADAPTER")
+                self._power_source_badge.setStyleSheet(
+                    "color: #38bdf8; background: #0c4a6e; border: 1px solid #0284c7; "
+                    "border-radius: 6px; font-size: 11px; font-weight: 600; padding: 3px 8px;"
+                )
+            else:
+                self._power_source_icon.setText("🔋")
+                pct_str = f" ({stats.battery_percent:.0f}%)" if getattr(stats, "battery_percent", None) is not None else ""
+                self._power_source_text.setText(f"Power Source: On Battery Power{pct_str}")
+                self._power_source_badge.setText("ON BATTERY")
+                self._power_source_badge.setStyleSheet(
+                    "color: #f59e0b; background: #451a03; border: 1px solid #d97706; "
+                    "border-radius: 6px; font-size: 11px; font-weight: 600; padding: 3px 8px;"
+                )
 
     def _on_profile_clicked(self, profile: str) -> None:
         if profile == self._current_profile:

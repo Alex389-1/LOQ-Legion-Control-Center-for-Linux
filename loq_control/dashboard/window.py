@@ -182,6 +182,7 @@ class DashboardWindow(QMainWindow):
     def _on_stats(self, stats: SystemStats) -> None:
         self._monitor_tab.on_stats_updated(stats, self._monitor.history)
         self._fan_tab.on_stats_updated(stats)
+        self._power_tab.on_stats_updated(stats)
 
     # ------------------------------------------------------------------
     # Window events

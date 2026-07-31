@@ -81,6 +81,10 @@ class SystemStats:
     net_ipv4: str = "—"
     net_is_wifi: bool = True
 
+    # Power Source
+    power_plugged: bool | None = None
+    battery_percent: float | None = None
+
     # Timestamp
     timestamp: float = 0.0
 
@@ -428,6 +432,15 @@ class MonitorThread(QThread):
 
         # Intel iGPU
         stats.igpu_util = self._igpu.read_util()
+
+        # Battery / AC Adapter
+        try:
+            batt = psutil.sensors_battery()
+            if batt is not None:
+                stats.power_plugged = batt.power_plugged
+                stats.battery_percent = batt.percent
+        except Exception:
+            pass
 
         # Network
         now = stats.timestamp
