@@ -454,15 +454,15 @@ class MonitorThread(QThread):
         stats.swap_used_gb = swap.used / 1e9
         stats.swap_total_gb = swap.total / 1e9
 
-        # Disk
+        # Disk (Unique physical block device partitions)
         mounts = []
-        seen_mounts = set()
+        seen_devices = set()
         for part in psutil.disk_partitions(all=False):
             if part.fstype in ("squashfs", "tmpfs", "devtmpfs", "overlay", ""):
                 continue
-            if part.mountpoint in seen_mounts:
+            if part.device in seen_devices:
                 continue
-            seen_mounts.add(part.mountpoint)
+            seen_devices.add(part.device)
             try:
                 usage = psutil.disk_usage(part.mountpoint)
                 mounts.append(DiskMount(

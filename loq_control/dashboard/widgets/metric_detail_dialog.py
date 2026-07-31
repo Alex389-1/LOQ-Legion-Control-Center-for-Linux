@@ -260,7 +260,7 @@ class MetricDetailDialog(QDialog):
             part_layout.setContentsMargins(16, 14, 16, 14)
             part_layout.setSpacing(12)
 
-            part_title = QLabel(f"MOUNTED STORAGE VOLUMES & PARTITIONS ({len(self._stats.disk_mounts)} MOUNT POINTS)")
+            part_title = QLabel(f"PHYSICAL DRIVE PARTITIONS ({len(self._stats.disk_mounts)} DETECTED PARTITIONS)")
             part_title.setStyleSheet("color: #a1a1aa; font-size: 11px; font-weight: 600; letter-spacing: 0.8px;")
             part_layout.addWidget(part_title)
 
@@ -278,12 +278,13 @@ class MetricDetailDialog(QDialog):
                 row_lay.setSpacing(6)
 
                 hdr = QHBoxLayout()
-                m_title = QLabel(f"💾 {m.mount}")
+                dev_title = f"💾 Partition {m.device}" if m.device else f"💾 Volume {m.mount}"
+                m_title = QLabel(dev_title)
                 m_title.setStyleSheet("color: #f4f4f5; font-size: 13px; font-weight: 700;")
                 hdr.addWidget(m_title)
                 hdr.addStretch()
 
-                dev_info = f"{m.device} ({m.fstype.upper()})" if m.device else m.fstype.upper()
+                dev_info = f"Mount: {m.mount} ({m.fstype.upper()})" if m.device else m.fstype.upper()
                 dev_lbl = QLabel(dev_info)
                 dev_lbl.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: 600;")
                 hdr.addWidget(dev_lbl)
