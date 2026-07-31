@@ -264,6 +264,7 @@ class MonitorTab(QWidget):
                 model_name="NVIDIA Power Management (NVML)",
                 meta_text="Target TGP: 95.0 W  ·  Dynamic Boost Target: 115.0 W"
             )
+            self._gpu_power_card.set_history(history.gpu_power)
 
         # Fans update
         if self._show_fans:
@@ -299,6 +300,7 @@ class MonitorTab(QWidget):
                 model_name=f"NVMe SSD Storage ({dm.mount})",
                 meta_text=f"Total Capacity: {dm.total_gb:.1f} GB  ·  Free Space: {free_gb:.1f} GB"
             )
+            self._disk_card.set_history(history.disk)
 
         # Network
         rx_fmt = f"{stats.net_rx_kbps:.1f} KB/s" if stats.net_rx_kbps < 1024 else f"{stats.net_rx_kbps / 1024.0:.2f} MB/s"

@@ -96,7 +96,9 @@ class StatsHistory:
     ram: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
     gpu_util: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
     gpu_temp: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
+    gpu_power: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
     igpu: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
+    disk: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
     net_rx: list[float] = field(default_factory=lambda: [0.0] * HISTORY_LEN)
 
     def push(self, stats: SystemStats) -> None:
@@ -108,8 +110,13 @@ class StatsHistory:
         self.gpu_util.pop(0)
         self.gpu_temp.append(float(stats.gpu_temp or 0))
         self.gpu_temp.pop(0)
+        self.gpu_power.append(float(stats.gpu_power_w or 0))
+        self.gpu_power.pop(0)
         self.igpu.append(stats.igpu_util or 0.0)
         self.igpu.pop(0)
+        disk_pct = stats.disk_mounts[0].percent if stats.disk_mounts else 0.0
+        self.disk.append(disk_pct)
+        self.disk.pop(0)
         self.net_rx.append(stats.net_rx_kbps)
         self.net_rx.pop(0)
 
