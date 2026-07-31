@@ -45,8 +45,10 @@ class MonitorTab(QWidget):
         # --- CPU ---
         self._cpu_card = MetricCard(
             "CPU", "cpu", "%", warn_threshold=60, danger_threshold=85,
-            sparkline_color=None
+            sparkline_color="#3b82f6"
         )
+        self._cpu_card._sparkline.set_color("#3b82f6")
+        self._cpu_card._sparkline.set_max_value(100.0)
 
         # --- RAM ---
         self._ram_card = MetricCard(
@@ -54,6 +56,7 @@ class MonitorTab(QWidget):
             sparkline_color="#a78bfa"
         )
         self._ram_card._sparkline.set_color("#a78bfa")
+        self._ram_card._sparkline.set_max_value(100.0)
 
         # --- iGPU ---
         self._igpu_card = MetricCard(
@@ -61,6 +64,7 @@ class MonitorTab(QWidget):
             sparkline_color="#38bdf8"
         )
         self._igpu_card._sparkline.set_color("#38bdf8")
+        self._igpu_card._sparkline.set_max_value(100.0)
         if not self._caps.intel_gpu_available and not self._caps.intel_gpu_top_available:
             self._igpu_card.set_unavailable("Intel iGPU not detected")
 
@@ -70,6 +74,7 @@ class MonitorTab(QWidget):
             sparkline_color="#10b981"
         )
         self._gpu_card._sparkline.set_color("#10b981")
+        self._gpu_card._sparkline.set_max_value(100.0)
         if not self._caps.nvidia_available:
             self._gpu_card.set_unavailable("NVML not available or GPU not detected")
 
@@ -79,6 +84,7 @@ class MonitorTab(QWidget):
             sparkline_color="#f59e0b"
         )
         self._gpu_temp_card._sparkline.set_color("#f59e0b")
+        self._gpu_temp_card._sparkline.set_max_value(100.0)
         if not self._caps.nvidia_available:
             self._gpu_temp_card.set_unavailable("NVIDIA GPU not detected")
 
@@ -115,6 +121,7 @@ class MonitorTab(QWidget):
             sparkline_color="#3b82f6"
         )
         self._disk_card._sparkline.set_color("#3b82f6")
+        self._disk_card._sparkline.set_max_value(100.0)
 
         self._net_card = MetricCard(
             "Network", "wifi", " KB/s", warn_threshold=10000, danger_threshold=50000,

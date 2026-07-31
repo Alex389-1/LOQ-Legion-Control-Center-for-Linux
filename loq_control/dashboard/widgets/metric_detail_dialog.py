@@ -166,7 +166,21 @@ class MetricDetailDialog(QDialog):
         elif "fan" in self._key:
             max_y = 6000.0
 
-        self._sparkline = SparklineWidget(color="#3b82f6", max_value=max_y)
+        color_map = {
+            "cpu": "#3b82f6",
+            "ram": "#a78bfa",
+            "igpu": "#38bdf8",
+            "gpu": "#10b981",
+            "gpu_temp": "#f59e0b",
+            "gpu_power": "#fb923c",
+            "disk": "#3b82f6",
+            "net": "#06b6d4",
+            "fan1": "#64748b",
+            "fan2": "#475569",
+        }
+        spark_color = color_map.get(self._key, "#3b82f6")
+
+        self._sparkline = SparklineWidget(color=spark_color, max_value=max_y)
         self._sparkline.setMinimumHeight(120)
         if hist_data:
             self._sparkline.set_data(hist_data)
