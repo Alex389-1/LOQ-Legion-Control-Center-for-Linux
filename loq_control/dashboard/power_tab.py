@@ -371,9 +371,12 @@ class PowerTab(QWidget):
                 self._update_cons_buttons(enable)
                 return
             err = res.stderr.strip() or res.stdout.strip() or "Permission denied"
-            QMessageBox.critical(self, "Error", f"Failed to set battery conservation mode:\n{err}")
+            QMessageBox.critical(
+                self, "Error — LOQ Control Center",
+                f"Failed to set battery conservation mode:\n\n{err}\n\nPlease run 'sudo ./scripts/install.sh' in terminal to update system helpers."
+            )
         except Exception as exc:
-            QMessageBox.critical(self, "Error", f"Failed to set battery conservation mode:\n{exc}")
+            QMessageBox.critical(self, "Error — LOQ Control Center", f"Failed to set battery conservation mode:\n\n{exc}")
 
     def on_stats_updated(self, stats: any) -> None:
         if hasattr(stats, "power_plugged") and stats.power_plugged is not None:
