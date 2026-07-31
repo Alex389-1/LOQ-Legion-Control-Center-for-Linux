@@ -21,6 +21,7 @@ from loq_control.dashboard.keyboard_tab import KeyboardTab
 from loq_control.dashboard.monitor_tab import MonitorTab
 from loq_control.dashboard.power_limits_tab import PowerLimitsTab
 from loq_control.dashboard.power_tab import PowerTab
+from loq_control.dashboard.processes_tab import ProcessesTab
 from loq_control.dashboard.widgets.icons import get_icon
 import loq_control.config as cfg_mod
 
@@ -111,6 +112,7 @@ class DashboardWindow(QMainWindow):
         self._tabs.setDocumentMode(True)
 
         self._monitor_tab = MonitorTab(self._caps)
+        self._processes_tab = ProcessesTab(self._caps)
         self._power_tab = PowerTab(self._caps)
         self._power_limits_tab = PowerLimitsTab(self._caps)
         self._fan_tab = FanTab(self._caps)
@@ -118,6 +120,7 @@ class DashboardWindow(QMainWindow):
         self._keyboard_tab = KeyboardTab(self._caps)
 
         self._tabs.addTab(self._monitor_tab,       get_icon("monitor", 16, "#a1a1aa"), "Monitor")
+        self._tabs.addTab(self._processes_tab,     get_icon("cpu", 16, "#a1a1aa"), "Processes")
         self._tabs.addTab(self._power_tab,          get_icon("power", 16, "#a1a1aa"), "Power")
         self._tabs.addTab(self._power_limits_tab,   get_icon("limits", 16, "#a1a1aa"), "Limits")
         self._tabs.addTab(self._fan_tab,            get_icon("fan", 16, "#a1a1aa"), "Fan")
