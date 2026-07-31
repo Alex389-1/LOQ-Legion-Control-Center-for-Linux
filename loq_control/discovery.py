@@ -198,7 +198,19 @@ def _probe_fan(caps: Capabilities) -> None:
 
 
 def _probe_power_profiles(caps: Capabilities) -> None:
-    """Check power-profiles-daemon availability via powerprofilesctl."""
+    """Check power-profiles-daemon availability via fast sysfs or powerprofilesctl."""
+    sysfs_choices = Path("/sys/firmware/acpi/platform_profile_choices")
+    if sysfs_choices.exists():
+        try:
+            choices = sysfs_choices.read_text().strip().split()
+            if choices:
+                caps.power_profiles_available = True
+                caps.power_profiles_profiles = choices
+                log.info("Power profiles available via sysfs: %s", choices)
+                return
+        except OSError:
+            pass
+
     if shutil.which("powerprofilesctl") is None:
         log.info("powerprofilesctl not found.")
         return

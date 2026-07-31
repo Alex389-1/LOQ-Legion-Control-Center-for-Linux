@@ -270,8 +270,18 @@ def _read_fan_rpms(hwmon_path: Path | None) -> tuple[int, int]:
     return _read("fan1_input"), _read("fan2_input")
 
 
+_partition_cache: tuple[float, list[DiskMount]] = (0.0, [])
+
+
 def _read_all_partitions() -> list[DiskMount]:
-    """Discover all physical disk partitions (Windows NTFS, Linux BTRFS/EXT4, EFI)."""
+    """Discover all physical disk partitions (Windows NTFS, Linux BTRFS/EXT4, EFI). Cached for 10s."""
+    global _partition_cache
+    now = time.time()
+    last_time, cached_mounts = _partition_cache
+
+    if cached_mounts and (now - last_time) < 10.0:
+        return cached_mounts
+
     mounts = []
     seen = set()
 
@@ -334,6 +344,7 @@ def _read_all_partitions() -> list[DiskMount]:
                         label=label,
                     ))
             if mounts:
+                _partition_cache = (now, mounts)
                 return mounts
     except Exception:
         pass
@@ -357,6 +368,7 @@ def _read_all_partitions() -> list[DiskMount]:
             ))
         except (PermissionError, OSError):
             pass
+    _partition_cache = (now, mounts)
     return mounts
 
 
