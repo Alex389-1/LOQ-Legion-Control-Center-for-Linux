@@ -345,8 +345,10 @@ class PowerTab(QWidget):
             self._cons_disable_btn.setStyleSheet(active_style)
 
     def _on_toggle_conservation(self, enable: bool) -> None:
-        import subprocess
+        import subprocess, os
         val_str = "1" if enable else "0"
+
+        # 1. Try sudo -n loq-helper
         try:
             res = subprocess.run(
                 ["sudo", "-n", "/usr/local/bin/loq-helper", "battery-conservation", val_str],
@@ -360,23 +362,66 @@ class PowerTab(QWidget):
         except Exception:
             pass
 
+        # 2. Try pkexec loq-helper (if updated)
         try:
             res = subprocess.run(
                 ["pkexec", "/usr/local/bin/loq-helper", "battery-conservation", val_str],
                 capture_output=True, text=True, timeout=10
             )
-            if res.returncode == 0:
+            if res.returncode == 0 and "Unknown subcommand" not in res.stdout and "Unknown subcommand" not in res.stderr:
                 self._caps.battery_conservation_enabled = enable
                 self._update_cons_badge(enable)
                 self._update_cons_buttons(enable)
                 return
-            err = res.stderr.strip() or res.stdout.strip() or "Permission denied"
-            QMessageBox.critical(
-                self, "Error — LOQ Control Center",
-                f"Failed to set battery conservation mode:\n\n{err}\n\nPlease run 'sudo ./scripts/install.sh' in terminal to update system helpers."
-            )
-        except Exception as exc:
-            QMessageBox.critical(self, "Error — LOQ Control Center", f"Failed to set battery conservation mode:\n\n{exc}")
+        except Exception:
+            pass
+
+        # 3. Fallback: Write directly to sysfs via pkexec tee / sudo -n tee
+        candidates = [
+            "/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode",
+            "/sys/devices/platform/ideapad_laptop/conservation_mode",
+            "/sys/bus/platform/devices/ideapad_laptop/conservation_mode",
+            "/sys/class/power_supply/BAT0/charge_control_end_threshold",
+            "/sys/class/power_supply/BAT1/charge_control_end_threshold",
+        ]
+        target_path = None
+        for c in candidates:
+            if os.path.exists(c):
+                target_path = c
+                break
+
+        if target_path:
+            write_val = ("80" if enable else "100") if "charge_control_end_threshold" in target_path else val_str
+            try:
+                res = subprocess.run(
+                    f"echo '{write_val}' | sudo -n tee '{target_path}'",
+                    shell=True, capture_output=True, text=True, timeout=5
+                )
+                if res.returncode == 0:
+                    self._caps.battery_conservation_enabled = enable
+                    self._update_cons_badge(enable)
+                    self._update_cons_buttons(enable)
+                    return
+            except Exception:
+                pass
+
+            try:
+                res = subprocess.run(
+                    f"echo '{write_val}' | pkexec tee '{target_path}'",
+                    shell=True, capture_output=True, text=True, timeout=10
+                )
+                if res.returncode == 0:
+                    self._caps.battery_conservation_enabled = enable
+                    self._update_cons_badge(enable)
+                    self._update_cons_buttons(enable)
+                    return
+            except Exception:
+                pass
+
+        QMessageBox.critical(
+            self, "Error — LOQ Control Center",
+            "Failed to toggle battery conservation mode.\n\nPlease run 'sudo ./scripts/install.sh' in terminal to update system permissions."
+        )
 
     def on_stats_updated(self, stats: any) -> None:
         if hasattr(stats, "power_plugged") and stats.power_plugged is not None:
