@@ -92,9 +92,8 @@ class MonitorTab(QWidget):
         if not self._caps.nvidia_available:
             self._gpu_power_card.set_unavailable("NVIDIA GPU not detected")
 
-        # --- Fans or Power Limit Targets ---
+        # --- Fans (if readable) ---
         self._show_fans = self._caps.fan_rpm_readable
-        self._show_limits = not self._caps.fan_rpm_readable and self._caps.power_limits_available
 
         if self._show_fans:
             self._fan1_card = MetricCard(
@@ -107,18 +106,6 @@ class MonitorTab(QWidget):
             )
             self._fan2_card._sparkline.set_max_value(6000.0)
             self._fan2_card._sparkline.set_color("#475569")
-        elif self._show_limits:
-            self._pl1_card = MetricCard(
-                "CPU PL1 Target", "limits", " W", warn_threshold=999, danger_threshold=999, sparkline_color="#3b82f6"
-            )
-            self._pl1_card._sparkline.set_color("#3b82f6")
-            self._pl1_card._sparkline.set_max_value(120.0)
-
-            self._ctgp_card = MetricCard(
-                "GPU cTGP Target", "zap", " W", warn_threshold=999, danger_threshold=999, sparkline_color="#38bdf8"
-            )
-            self._ctgp_card._sparkline.set_color("#38bdf8")
-            self._ctgp_card._sparkline.set_max_value(120.0)
         else:
             self._fan1_card = None
             self._fan2_card = None
@@ -162,12 +149,9 @@ class MonitorTab(QWidget):
         if self._show_fans:
             cards.append((self._fan1_card, 3, 0))
             cards.append((self._fan2_card, 3, 1))
-        elif self._show_limits:
-            cards.append((self._pl1_card,  3, 0))
-            cards.append((self._ctgp_card, 3, 1))
 
-        cards.append((self._disk_card, 4, 0))
-        cards.append((self._net_card,  4, 1))
+        cards.append((self._disk_card, 3, 0))
+        cards.append((self._net_card,  3, 1))
 
         for entry in cards:
             card = entry[0]
@@ -281,7 +265,7 @@ class MonitorTab(QWidget):
                 meta_text="Target TGP: 95.0 W  ·  Dynamic Boost Target: 115.0 W"
             )
 
-        # Fans / Limits update
+        # Fans update
         if self._show_fans:
             self._fan1_card.update_value(
                 f"{stats.fan1_rpm}",
@@ -301,32 +285,6 @@ class MonitorTab(QWidget):
                 model_name="Lenovo Dual Thermal Fan 2",
                 meta_text="Max Rated Speed: 5800 RPM  ·  Status: Active"
             )
-        elif self._show_limits:
-            import loq_control.backend.power_limits as pl
-            vals = pl.read_current_values(pl.resolve_attrs(self._caps))
-            pl1_val = vals.get("cpu_pl1")
-            ctgp_val = vals.get("gpu_ctgp")
-
-            if pl1_val is not None:
-                self._pl1_card.update_value(
-                    float(pl1_val),
-                    subtitle="CPU Sustained Power Target",
-                    push_history=float(pl1_val),
-                )
-                self._pl1_card.set_spec_details(
-                    model_name="Lenovo ACPI WMI Firmware Target",
-                    meta_text="PPT PL1 Sustained Package Limit"
-                )
-            if ctgp_val is not None:
-                self._ctgp_card.update_value(
-                    float(ctgp_val),
-                    subtitle="GPU Configurable TGP Target",
-                    push_history=float(ctgp_val),
-                )
-                self._ctgp_card.set_spec_details(
-                    model_name="Lenovo ACPI WMI Firmware Target",
-                    meta_text="NVIDIA Configurable Total Graphics Power Target"
-                )
 
         # Disk
         if stats.disk_mounts:
