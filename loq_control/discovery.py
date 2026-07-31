@@ -202,11 +202,22 @@ def _probe_power_profiles(caps: Capabilities) -> None:
     sysfs_choices = Path("/sys/firmware/acpi/platform_profile_choices")
     if sysfs_choices.exists():
         try:
-            choices = sysfs_choices.read_text().strip().split()
-            if choices:
+            choices_raw = sysfs_choices.read_text().strip().split()
+            if choices_raw:
                 caps.power_profiles_available = True
-                caps.power_profiles_profiles = choices
-                log.info("Power profiles available via sysfs: %s", choices)
+                mapped = []
+                for c in choices_raw:
+                    if c in ("low-power", "quiet", "power-saver"):
+                        if "power-saver" not in mapped:
+                            mapped.append("power-saver")
+                    elif c in ("balanced", "normal"):
+                        if "balanced" not in mapped:
+                            mapped.append("balanced")
+                    elif c in ("performance", "max-power", "high-performance"):
+                        if "performance" not in mapped:
+                            mapped.append("performance")
+                caps.power_profiles_profiles = mapped or ["power-saver", "balanced", "performance"]
+                log.info("Power profiles available via sysfs: %s", caps.power_profiles_profiles)
                 return
         except OSError:
             pass
