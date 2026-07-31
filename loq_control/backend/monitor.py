@@ -39,6 +39,8 @@ class DiskMount:
     used_gb: float
     total_gb: float
     percent: float
+    device: str = ""
+    fstype: str = ""
 
 
 @dataclass
@@ -454,9 +456,13 @@ class MonitorThread(QThread):
 
         # Disk
         mounts = []
+        seen_mounts = set()
         for part in psutil.disk_partitions(all=False):
-            if part.fstype in ("squashfs", "tmpfs", "devtmpfs", ""):
+            if part.fstype in ("squashfs", "tmpfs", "devtmpfs", "overlay", ""):
                 continue
+            if part.mountpoint in seen_mounts:
+                continue
+            seen_mounts.add(part.mountpoint)
             try:
                 usage = psutil.disk_usage(part.mountpoint)
                 mounts.append(DiskMount(
@@ -464,6 +470,8 @@ class MonitorThread(QThread):
                     used_gb=usage.used / 1e9,
                     total_gb=usage.total / 1e9,
                     percent=usage.percent,
+                    device=part.device,
+                    fstype=part.fstype,
                 ))
             except (PermissionError, OSError):
                 pass

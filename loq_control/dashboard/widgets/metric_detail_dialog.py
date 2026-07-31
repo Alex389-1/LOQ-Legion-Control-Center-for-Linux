@@ -246,6 +246,82 @@ class MetricDetailDialog(QDialog):
             core_layout.addLayout(grid)
             body.addWidget(core_frame)
 
+        # 3. Mounted Storage Volumes Section (Only for Disk)
+        if self._key == "disk" and self._stats.disk_mounts:
+            part_frame = QFrame()
+            part_frame.setStyleSheet("""
+                QFrame {
+                    background: #18181b;
+                    border: 1px solid #27272a;
+                    border-radius: 10px;
+                }
+            """)
+            part_layout = QVBoxLayout(part_frame)
+            part_layout.setContentsMargins(16, 14, 16, 14)
+            part_layout.setSpacing(12)
+
+            part_title = QLabel(f"MOUNTED STORAGE VOLUMES & PARTITIONS ({len(self._stats.disk_mounts)} MOUNT POINTS)")
+            part_title.setStyleSheet("color: #a1a1aa; font-size: 11px; font-weight: 600; letter-spacing: 0.8px;")
+            part_layout.addWidget(part_title)
+
+            for m in self._stats.disk_mounts:
+                row_card = QFrame()
+                row_card.setStyleSheet("""
+                    QFrame {
+                        background: #111114;
+                        border: 1px solid #1e1e24;
+                        border-radius: 8px;
+                    }
+                """)
+                row_lay = QVBoxLayout(row_card)
+                row_lay.setContentsMargins(12, 10, 12, 10)
+                row_lay.setSpacing(6)
+
+                hdr = QHBoxLayout()
+                m_title = QLabel(f"💾 {m.mount}")
+                m_title.setStyleSheet("color: #f4f4f5; font-size: 13px; font-weight: 700;")
+                hdr.addWidget(m_title)
+                hdr.addStretch()
+
+                dev_info = f"{m.device} ({m.fstype.upper()})" if m.device else m.fstype.upper()
+                dev_lbl = QLabel(dev_info)
+                dev_lbl.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: 600;")
+                hdr.addWidget(dev_lbl)
+                row_lay.addLayout(hdr)
+
+                pbar = QProgressBar()
+                pbar.setRange(0, 100)
+                pbar.setValue(int(m.percent))
+                pbar.setTextVisible(False)
+                pbar.setFixedHeight(8)
+                bar_color = "#22c55e" if m.percent < 75 else ("#f59e0b" if m.percent < 90 else "#ef4444")
+                pbar.setStyleSheet(f"""
+                    QProgressBar {{
+                        background: #18181b; border: 1px solid #27272a; border-radius: 4px;
+                    }}
+                    QProgressBar::chunk {{
+                        background: {bar_color}; border-radius: 4px;
+                    }}
+                """)
+                row_lay.addWidget(pbar)
+
+                sub_hdr = QHBoxLayout()
+                free_gb = m.total_gb - m.used_gb
+                stat_str = f"Used: {m.used_gb:.1f} GB / {m.total_gb:.1f} GB ({m.percent:.1f}%)"
+                stat_lbl = QLabel(stat_str)
+                stat_lbl.setStyleSheet("color: #a1a1aa; font-size: 11px;")
+                sub_hdr.addWidget(stat_lbl)
+                sub_hdr.addStretch()
+
+                free_lbl = QLabel(f"Free Space: {free_gb:.1f} GB")
+                free_lbl.setStyleSheet("color: #10b981; font-size: 11px; font-weight: 600;")
+                sub_hdr.addWidget(free_lbl)
+                row_lay.addLayout(sub_hdr)
+
+                part_layout.addWidget(row_card)
+
+            body.addWidget(part_frame)
+
         # 3. Hardware Technical Specifications Panel
         spec_frame = QFrame()
         spec_frame.setStyleSheet("""
