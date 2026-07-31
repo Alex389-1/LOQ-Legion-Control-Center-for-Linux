@@ -58,6 +58,9 @@ class SystemStats:
 
     # Disk
     disk_mounts: list[DiskMount] = field(default_factory=list)
+    disk_read_kbps: float = 0.0
+    disk_write_kbps: float = 0.0
+    disk_busy_percent: float = 0.0
 
     # NVIDIA dGPU
     gpu_util: int | None = None
@@ -114,8 +117,7 @@ class StatsHistory:
         self.gpu_power.pop(0)
         self.igpu.append(stats.igpu_util or 0.0)
         self.igpu.pop(0)
-        disk_pct = stats.disk_mounts[0].percent if stats.disk_mounts else 0.0
-        self.disk.append(disk_pct)
+        self.disk.append(stats.disk_busy_percent)
         self.disk.pop(0)
         self.net_rx.append(stats.net_rx_kbps)
         self.net_rx.pop(0)
@@ -466,6 +468,26 @@ class MonitorThread(QThread):
             except (PermissionError, OSError):
                 pass
         stats.disk_mounts = mounts
+
+        # Real-time Disk I/O Activity
+        now = stats.timestamp
+        try:
+            io_counters = psutil.disk_io_counters()
+            if io_counters and hasattr(self, "_last_disk_io"):
+                dt = max(now - getattr(self, "_last_disk_time", now - 1.0), 0.1)
+                last_io = self._last_disk_io
+                r_bytes = max(0, io_counters.read_bytes - last_io.read_bytes)
+                w_bytes = max(0, io_counters.write_bytes - last_io.write_bytes)
+                io_time = max(0, (io_counters.read_time - last_io.read_time) + (io_counters.write_time - last_io.write_time))
+
+                stats.disk_read_kbps = (r_bytes / 1024.0) / dt
+                stats.disk_write_kbps = (w_bytes / 1024.0) / dt
+                stats.disk_busy_percent = min(100.0, (io_time / (dt * 1000.0)) * 100.0)
+
+            self._last_disk_io = io_counters
+            self._last_disk_time = now
+        except Exception:
+            pass
 
         # NVIDIA
         (

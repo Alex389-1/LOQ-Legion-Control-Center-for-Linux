@@ -111,10 +111,10 @@ class MonitorTab(QWidget):
             self._fan2_card = None
 
         self._disk_card = MetricCard(
-            "Disk", "monitor", "%", warn_threshold=75, danger_threshold=90,
-            sparkline_color="#94a3b8"
+            "Disk Activity", "monitor", "%", warn_threshold=75, danger_threshold=90,
+            sparkline_color="#3b82f6"
         )
-        self._disk_card._sparkline.set_color("#94a3b8")
+        self._disk_card._sparkline.set_color("#3b82f6")
 
         self._net_card = MetricCard(
             "Network", "wifi", " KB/s", warn_threshold=10000, danger_threshold=50000,
@@ -287,18 +287,20 @@ class MonitorTab(QWidget):
                 meta_text="Max Rated Speed: 5800 RPM  ·  Status: Active"
             )
 
-        # Disk
+        # Disk (Real-Time I/O Activity)
         if stats.disk_mounts:
             dm = stats.disk_mounts[0]
+            r_fmt = f"{stats.disk_read_kbps:.1f} KB/s" if stats.disk_read_kbps < 1024 else f"{stats.disk_read_kbps / 1024.0:.1f} MB/s"
+            w_fmt = f"{stats.disk_write_kbps:.1f} KB/s" if stats.disk_write_kbps < 1024 else f"{stats.disk_write_kbps / 1024.0:.1f} MB/s"
             self._disk_card.update_value(
-                dm.percent,
-                subtitle=f"Used: {dm.used_gb:.1f} / {dm.total_gb:.1f} GB ({dm.mount})",
-                push_history=dm.percent,
+                stats.disk_busy_percent,
+                subtitle=f"R: {r_fmt}  W: {w_fmt}  ·  Cap: {dm.used_gb:.1f}/{dm.total_gb:.1f} GB ({dm.percent:.0f}%)",
+                push_history=stats.disk_busy_percent,
             )
             free_gb = dm.total_gb - dm.used_gb
             self._disk_card.set_spec_details(
                 model_name=f"NVMe SSD Storage ({dm.mount})",
-                meta_text=f"Total Capacity: {dm.total_gb:.1f} GB  ·  Free Space: {free_gb:.1f} GB"
+                meta_text=f"Total Capacity: {dm.total_gb:.1f} GB  ·  Free Space: {free_gb:.1f} GB  ·  Read: {r_fmt}  Write: {w_fmt}"
             )
             self._disk_card.set_history(history.disk)
 
