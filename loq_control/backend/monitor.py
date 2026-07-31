@@ -41,6 +41,7 @@ class DiskMount:
     percent: float
     device: str = ""
     fstype: str = ""
+    label: str = ""
 
 
 @dataclass
@@ -269,6 +270,96 @@ def _read_fan_rpms(hwmon_path: Path | None) -> tuple[int, int]:
     return _read("fan1_input"), _read("fan2_input")
 
 
+def _read_all_partitions() -> list[DiskMount]:
+    """Discover all physical disk partitions (Windows NTFS, Linux BTRFS/EXT4, EFI)."""
+    mounts = []
+    seen = set()
+
+    try:
+        res = subprocess.run(
+            ["lsblk", "-J", "-b", "-o", "NAME,SIZE,FSTYPE,MOUNTPOINTS,LABEL,MODEL,TYPE"],
+            capture_output=True, text=True, timeout=3
+        )
+        if res.returncode == 0 and res.stdout.strip():
+            data = json.loads(res.stdout)
+            for dev in data.get("blockdevices", []):
+                children = dev.get("children", [dev])
+                for child in children:
+                    name = child.get("name", "")
+                    fstype = child.get("fstype", "")
+                    if not name or fstype in ("swap", "squashfs", "tmpfs", "devtmpfs", "overlay"):
+                        continue
+                    size_bytes = child.get("size") or 0
+                    if size_bytes < 32 * 1024 * 1024 and not fstype:
+                        continue
+
+                    dev_path = f"/dev/{name}"
+                    if dev_path in seen:
+                        continue
+
+                    fstype_str = fstype or "Partition"
+                    label = child.get("label") or ""
+                    mountpoints = [m for m in child.get("mountpoints", []) if m]
+
+                    if "/" in mountpoints:
+                        mount_path = "/"
+                    elif mountpoints:
+                        mount_path = mountpoints[0]
+                    else:
+                        mount_path = f"Unmounted ({label})" if label else "Unmounted"
+
+                    total_gb = size_bytes / 1e9
+                    used_gb = 0.0
+                    percent = 0.0
+
+                    if mountpoints:
+                        for mp in mountpoints:
+                            try:
+                                usage = psutil.disk_usage(mp)
+                                used_gb = usage.used / 1e9
+                                total_gb = usage.total / 1e9
+                                percent = usage.percent
+                                break
+                            except Exception:
+                                pass
+
+                    seen.add(dev_path)
+                    mounts.append(DiskMount(
+                        mount=mount_path,
+                        used_gb=used_gb,
+                        total_gb=total_gb,
+                        percent=percent,
+                        device=dev_path,
+                        fstype=fstype_str,
+                        label=label,
+                    ))
+            if mounts:
+                return mounts
+    except Exception:
+        pass
+
+    seen_devs = set()
+    for part in psutil.disk_partitions(all=True):
+        if part.fstype in ("squashfs", "tmpfs", "devtmpfs", "overlay", ""):
+            continue
+        if part.device in seen_devs:
+            continue
+        seen_devs.add(part.device)
+        try:
+            usage = psutil.disk_usage(part.mountpoint)
+            mounts.append(DiskMount(
+                mount=part.mountpoint,
+                used_gb=usage.used / 1e9,
+                total_gb=usage.total / 1e9,
+                percent=usage.percent,
+                device=part.device,
+                fstype=part.fstype,
+            ))
+        except (PermissionError, OSError):
+            pass
+    return mounts
+
+
 def _read_power_supply() -> tuple[bool | None, float | None]:
     """Returns (power_plugged, battery_percent)."""
     power_plugged = None
@@ -454,28 +545,8 @@ class MonitorThread(QThread):
         stats.swap_used_gb = swap.used / 1e9
         stats.swap_total_gb = swap.total / 1e9
 
-        # Disk (Unique physical block device partitions)
-        mounts = []
-        seen_devices = set()
-        for part in psutil.disk_partitions(all=False):
-            if part.fstype in ("squashfs", "tmpfs", "devtmpfs", "overlay", ""):
-                continue
-            if part.device in seen_devices:
-                continue
-            seen_devices.add(part.device)
-            try:
-                usage = psutil.disk_usage(part.mountpoint)
-                mounts.append(DiskMount(
-                    mount=part.mountpoint,
-                    used_gb=usage.used / 1e9,
-                    total_gb=usage.total / 1e9,
-                    percent=usage.percent,
-                    device=part.device,
-                    fstype=part.fstype,
-                ))
-            except (PermissionError, OSError):
-                pass
-        stats.disk_mounts = mounts
+        # Disk (Discover all physical partitions including Windows NTFS & Linux)
+        stats.disk_mounts = _read_all_partitions()
 
         # Real-time Disk I/O Activity
         now = stats.timestamp

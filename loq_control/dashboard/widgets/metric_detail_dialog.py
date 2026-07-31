@@ -278,13 +278,13 @@ class MetricDetailDialog(QDialog):
                 row_lay.setSpacing(6)
 
                 hdr = QHBoxLayout()
-                dev_title = f"💾 Partition {m.device}" if m.device else f"💾 Volume {m.mount}"
-                m_title = QLabel(dev_title)
+                dev_name = f"{m.device} ({m.label})" if m.label else (m.device or m.mount)
+                m_title = QLabel(f"💾 Partition {dev_name}")
                 m_title.setStyleSheet("color: #f4f4f5; font-size: 13px; font-weight: 700;")
                 hdr.addWidget(m_title)
                 hdr.addStretch()
 
-                dev_info = f"Mount: {m.mount} ({m.fstype.upper()})" if m.device else m.fstype.upper()
+                dev_info = f"Mount: {m.mount} · {m.fstype.upper()}"
                 dev_lbl = QLabel(dev_info)
                 dev_lbl.setStyleSheet("color: #38bdf8; font-size: 11px; font-weight: 600;")
                 hdr.addWidget(dev_lbl)
