@@ -86,6 +86,7 @@ class PowerTab(QWidget):
         self._buttons: dict[str, _ProfileButton] = {}
         self._current_profile: str | None = None
         self._build_ui()
+        self._init_power_source()
 
         if caps.power_profiles_available:
             self._refresh_profile()
@@ -252,6 +253,14 @@ class PowerTab(QWidget):
         self._status_label.setText(
             f"Active: {pp.label_for(profile)}  ·  Changes apply system-wide"
         )
+
+    def _init_power_source(self) -> None:
+        from loq_control.backend.monitor import _read_power_supply
+        plugged, pct = _read_power_supply()
+        class StatsStub:
+            power_plugged = plugged
+            battery_percent = pct
+        self.on_stats_updated(StatsStub())
 
     def on_stats_updated(self, stats: any) -> None:
         if hasattr(stats, "power_plugged") and stats.power_plugged is not None:

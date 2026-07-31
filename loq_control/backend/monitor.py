@@ -258,6 +258,46 @@ def _read_fan_rpms(hwmon_path: Path | None) -> tuple[int, int]:
     return _read("fan1_input"), _read("fan2_input")
 
 
+def _read_power_supply() -> tuple[bool | None, float | None]:
+    """Returns (power_plugged, battery_percent)."""
+    power_plugged = None
+    battery_percent = None
+
+    for ac_path in glob.glob("/sys/class/power_supply/*"):
+        type_f = Path(ac_path) / "type"
+        online_f = Path(ac_path) / "online"
+        if type_f.exists() and online_f.exists():
+            try:
+                ps_type = type_f.read_text().strip().lower()
+                if ps_type in ("mains", "ac"):
+                    val = int(online_f.read_text().strip())
+                    power_plugged = (val == 1)
+                    break
+            except Exception:
+                pass
+
+    for bat_path in glob.glob("/sys/class/power_supply/BAT*"):
+        cap_f = Path(bat_path) / "capacity"
+        if cap_f.exists():
+            try:
+                battery_percent = float(cap_f.read_text().strip())
+                break
+            except Exception:
+                pass
+
+    try:
+        batt = psutil.sensors_battery()
+        if batt is not None:
+            if power_plugged is None:
+                power_plugged = batt.power_plugged
+            if battery_percent is None:
+                battery_percent = batt.percent
+    except Exception:
+        pass
+
+    return power_plugged, battery_percent
+
+
 # ---------------------------------------------------------------------------
 # NVIDIA reader
 # ---------------------------------------------------------------------------
@@ -434,13 +474,7 @@ class MonitorThread(QThread):
         stats.igpu_util = self._igpu.read_util()
 
         # Battery / AC Adapter
-        try:
-            batt = psutil.sensors_battery()
-            if batt is not None:
-                stats.power_plugged = batt.power_plugged
-                stats.battery_percent = batt.percent
-        except Exception:
-            pass
+        stats.power_plugged, stats.battery_percent = _read_power_supply()
 
         # Network
         now = stats.timestamp
