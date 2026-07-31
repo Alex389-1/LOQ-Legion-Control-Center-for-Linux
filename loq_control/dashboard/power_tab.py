@@ -209,6 +209,53 @@ class PowerTab(QWidget):
         context_layout.addLayout(self._ctx_grid)
         root.addWidget(context_frame)
 
+        # Battery Conservation Mode Card (Charge Limit / Capping at 80%)
+        if self._caps.battery_conservation_available:
+            self._cons_frame = QFrame()
+            self._cons_frame.setStyleSheet(
+                "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
+            )
+            cons_layout = QVBoxLayout(self._cons_frame)
+            cons_layout.setContentsMargins(16, 14, 16, 14)
+            cons_layout.setSpacing(10)
+
+            header_row = QHBoxLayout()
+            cons_title = QLabel("BATTERY CONSERVATION MODE (80% CHARGE CAPPING)")
+            cons_title.setStyleSheet("color: #a1a1aa; font-size: 11px; font-weight: 600; letter-spacing: 0.8px;")
+            header_row.addWidget(cons_title)
+            header_row.addStretch()
+
+            self._cons_badge = QLabel("DETECTING")
+            header_row.addWidget(self._cons_badge)
+            cons_layout.addLayout(header_row)
+
+            cons_desc = QLabel(
+                "Caps battery charging at ~80% to extend battery health and prevent high-voltage degradation "
+                "when running on AC power continuously. Disable to charge fully to 100% for travel."
+            )
+            cons_desc.setStyleSheet("color: #71717a; font-size: 12px;")
+            cons_desc.setWordWrap(True)
+            cons_layout.addWidget(cons_desc)
+
+            btn_row = QHBoxLayout()
+            btn_row.setSpacing(10)
+
+            self._cons_enable_btn = QPushButton("Enable Capping (80%)")
+            self._cons_disable_btn = QPushButton("Disable Capping (100%)")
+
+            self._update_cons_badge(self._caps.battery_conservation_enabled)
+            self._update_cons_buttons(self._caps.battery_conservation_enabled)
+
+            self._cons_enable_btn.clicked.connect(lambda: self._on_toggle_conservation(True))
+            self._cons_disable_btn.clicked.connect(lambda: self._on_toggle_conservation(False))
+
+            btn_row.addWidget(self._cons_enable_btn)
+            btn_row.addWidget(self._cons_disable_btn)
+            btn_row.addStretch()
+
+            cons_layout.addLayout(btn_row)
+            root.addWidget(self._cons_frame)
+
         # Current profile indicator
         self._status_label = QLabel("Detecting current profile…")
         self._status_label.setStyleSheet("color: #71717a; font-size: 11px;")
@@ -261,6 +308,72 @@ class PowerTab(QWidget):
             power_plugged = plugged
             battery_percent = pct
         self.on_stats_updated(StatsStub())
+
+    def _update_cons_badge(self, enabled: bool) -> None:
+        if enabled:
+            self._cons_badge.setText("ENABLED (80% CAPPED)")
+            self._cons_badge.setStyleSheet(
+                "color: #10b981; background: #064e3b; border: 1px solid #059669; "
+                "border-radius: 6px; font-size: 11px; font-weight: 600; padding: 3px 8px;"
+            )
+        else:
+            self._cons_badge.setText("DISABLED (100% FULL)")
+            self._cons_badge.setStyleSheet(
+                "color: #f59e0b; background: #451a03; border: 1px solid #d97706; "
+                "border-radius: 6px; font-size: 11px; font-weight: 600; padding: 3px 8px;"
+            )
+
+    def _update_cons_buttons(self, enabled: bool) -> None:
+        active_style = """
+            QPushButton {
+                background: #2563eb; color: white; border: 1px solid #3b82f6;
+                border-radius: 6px; font-size: 12px; font-weight: 600; padding: 8px 16px;
+            }
+        """
+        inactive_style = """
+            QPushButton {
+                background: #18181b; color: #a1a1aa; border: 1px solid #27272a;
+                border-radius: 6px; font-size: 12px; font-weight: 500; padding: 8px 16px;
+            }
+            QPushButton:hover { background: #27272a; color: #f4f4f5; }
+        """
+        if enabled:
+            self._cons_enable_btn.setStyleSheet(active_style)
+            self._cons_disable_btn.setStyleSheet(inactive_style)
+        else:
+            self._cons_enable_btn.setStyleSheet(inactive_style)
+            self._cons_disable_btn.setStyleSheet(active_style)
+
+    def _on_toggle_conservation(self, enable: bool) -> None:
+        import subprocess
+        val_str = "1" if enable else "0"
+        try:
+            res = subprocess.run(
+                ["sudo", "-n", "/usr/local/bin/loq-helper", "battery-conservation", val_str],
+                capture_output=True, text=True, timeout=5
+            )
+            if res.returncode == 0:
+                self._caps.battery_conservation_enabled = enable
+                self._update_cons_badge(enable)
+                self._update_cons_buttons(enable)
+                return
+        except Exception:
+            pass
+
+        try:
+            res = subprocess.run(
+                ["pkexec", "/usr/local/bin/loq-helper", "battery-conservation", val_str],
+                capture_output=True, text=True, timeout=10
+            )
+            if res.returncode == 0:
+                self._caps.battery_conservation_enabled = enable
+                self._update_cons_badge(enable)
+                self._update_cons_buttons(enable)
+                return
+            err = res.stderr.strip() or res.stdout.strip() or "Permission denied"
+            QMessageBox.critical(self, "Error", f"Failed to set battery conservation mode:\n{err}")
+        except Exception as exc:
+            QMessageBox.critical(self, "Error", f"Failed to set battery conservation mode:\n{exc}")
 
     def on_stats_updated(self, stats: any) -> None:
         if hasattr(stats, "power_plugged") and stats.power_plugged is not None:

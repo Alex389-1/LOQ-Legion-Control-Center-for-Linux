@@ -390,6 +390,48 @@ def cmd_power_limit(attr_name: str, value_str: str) -> int:
         return 1
 
 
+def _find_conservation_mode_path() -> Path | None:
+    candidates = [
+        Path("/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode"),
+        Path("/sys/devices/platform/ideapad_laptop/conservation_mode"),
+        Path("/sys/bus/platform/devices/ideapad_laptop/conservation_mode"),
+        Path("/sys/class/power_supply/BAT0/charge_control_end_threshold"),
+        Path("/sys/class/power_supply/BAT1/charge_control_end_threshold"),
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return None
+
+
+def cmd_battery_conservation(val_str: str) -> int:
+    """Toggle battery conservation mode (0 = 100% full charge, 1 = 80% capped charge limit)."""
+    if val_str not in ("0", "1"):
+        print("ERROR: value must be 0 or 1", file=sys.stderr)
+        return 1
+
+    path = _find_conservation_mode_path()
+    if path is None:
+        print("ERROR: conservation_mode sysfs node not found", file=sys.stderr)
+        return 1
+
+    try:
+        if "charge_control_end_threshold" in str(path):
+            threshold = "80" if val_str == "1" else "100"
+            path.write_text(threshold)
+        else:
+            path.write_text(val_str)
+        try:
+            os.sync()
+        except Exception:
+            pass
+        print(f"Battery conservation mode set to: {val_str}")
+        return 0
+    except OSError as exc:
+        print(f"ERROR: Failed to write {path}: {exc}", file=sys.stderr)
+        return 1
+
+
 # ---------------------------------------------------------------------------
 # Main dispatcher
 # ---------------------------------------------------------------------------
@@ -438,6 +480,12 @@ def main() -> int:
             print("Usage: loq-helper power-limit <attr_name> <watts>", file=sys.stderr)
             return 1
         return cmd_power_limit(sys.argv[2], sys.argv[3])
+
+    elif subcmd == "battery-conservation":
+        if len(sys.argv) < 3:
+            print("Usage: loq-helper battery-conservation <0|1>", file=sys.stderr)
+            return 1
+        return cmd_battery_conservation(sys.argv[2])
 
     else:
         print(f"ERROR: Unknown subcommand: {subcmd}", file=sys.stderr)

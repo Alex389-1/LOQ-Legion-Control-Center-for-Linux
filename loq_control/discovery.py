@@ -41,6 +41,10 @@ class Capabilities:
     power_profiles_available: bool = False
     power_profiles_profiles: list[str] = field(default_factory=list)
 
+    # --- Battery Conservation Mode (Charge Limit) ---
+    battery_conservation_available: bool = False
+    battery_conservation_enabled: bool = False
+
     # --- Power limits (WMI firmware-attributes) ---
     power_limits_available: bool = False
     power_limits_writable: bool = False
@@ -214,6 +218,30 @@ def _probe_power_profiles(caps: Capabilities) -> None:
             log.info("Power profiles available: %s", caps.power_profiles_profiles)
     except Exception as exc:
         log.warning("powerprofilesctl probe failed: %s", exc)
+
+
+def _probe_battery_conservation(caps: Capabilities) -> None:
+    """Probe for Lenovo battery conservation mode / charge capping node."""
+    candidates = [
+        Path("/sys/bus/platform/drivers/ideapad_acpi/VPC2004:00/conservation_mode"),
+        Path("/sys/devices/platform/ideapad_laptop/conservation_mode"),
+        Path("/sys/bus/platform/devices/ideapad_laptop/conservation_mode"),
+        Path("/sys/class/power_supply/BAT0/charge_control_end_threshold"),
+        Path("/sys/class/power_supply/BAT1/charge_control_end_threshold"),
+    ]
+    for c in candidates:
+        if c.exists():
+            caps.battery_conservation_available = True
+            try:
+                val = c.read_text().strip()
+                if "charge_control_end_threshold" in str(c):
+                    caps.battery_conservation_enabled = (val == "80")
+                else:
+                    caps.battery_conservation_enabled = (val == "1")
+                log.info("Battery conservation mode found at %s (enabled=%s)", c, caps.battery_conservation_enabled)
+            except OSError:
+                pass
+            break
 
 
 def _probe_nvidia(caps: Capabilities) -> None:
@@ -438,6 +466,7 @@ def discover(force: bool = False) -> Capabilities:
     _probe_system(caps)
     _probe_fan(caps)
     _probe_power_profiles(caps)
+    _probe_battery_conservation(caps)
     _probe_power_limits(caps)
     _probe_nvidia(caps)
     _probe_intel_gpu_top(caps)
