@@ -176,39 +176,6 @@ class PowerTab(QWidget):
         desc_layout.addWidget(self._desc_label)
         root.addWidget(self._desc_frame)
 
-        # Live Profile Context Readout (P3.2)
-        context_frame = QFrame()
-        context_frame.setStyleSheet(
-            "QFrame { background: #18181b; border: 1px solid #27272a; border-radius: 10px; }"
-        )
-        context_layout = QVBoxLayout(context_frame)
-        context_layout.setContentsMargins(16, 14, 16, 14)
-        context_layout.setSpacing(8)
-
-        ctx_title = QLabel("ACTIVE PROFILE HARDWARE POWER TARGETS")
-        ctx_title.setStyleSheet("color: #a1a1aa; font-size: 11px; font-weight: 600; letter-spacing: 0.8px;")
-        context_layout.addWidget(ctx_title)
-
-        self._ctx_grid = QHBoxLayout()
-        self._ctx_grid.setSpacing(20)
-
-        self._pl1_ctx = QLabel("PL1 Target: — W")
-        self._pl1_ctx.setStyleSheet("color: #3b82f6; font-size: 12px; font-weight: 600;")
-
-        self._pl2_ctx = QLabel("PL2 Target: — W")
-        self._pl2_ctx.setStyleSheet("color: #38bdf8; font-size: 12px; font-weight: 600;")
-
-        self._ctgp_ctx = QLabel("cTGP Target: — W")
-        self._ctgp_ctx.setStyleSheet("color: #10b981; font-size: 12px; font-weight: 600;")
-
-        self._ctx_grid.addWidget(self._pl1_ctx)
-        self._ctx_grid.addWidget(self._pl2_ctx)
-        self._ctx_grid.addWidget(self._ctgp_ctx)
-        self._ctx_grid.addStretch()
-
-        context_layout.addLayout(self._ctx_grid)
-        root.addWidget(context_frame)
-
         # Battery Conservation Mode Card (Charge Limit / Capping at 80%)
         if self._caps.battery_conservation_available:
             self._cons_frame = QFrame()
@@ -284,19 +251,6 @@ class PowerTab(QWidget):
         desc = pp.description_for(profile)
         self._desc_label.setText(desc)
 
-        # Update live context values per profile (P3.2)
-        if profile == "power-saver":
-            self._pl1_ctx.setText("PL1 Target: 45 W (Sustained)")
-            self._pl2_ctx.setText("PL2 Target: 65 W (Burst)")
-            self._ctgp_ctx.setText("cTGP Target: 60 W (Quiet)")
-        elif profile == "performance":
-            self._pl1_ctx.setText("PL1 Target: 115 W (Sustained)")
-            self._pl2_ctx.setText("PL2 Target: 135 W (Burst)")
-            self._ctgp_ctx.setText("cTGP Target: 95 W (Max Performance)")
-        else:  # balanced
-            self._pl1_ctx.setText("PL1 Target: 85 W (Sustained)")
-            self._pl2_ctx.setText("PL2 Target: 105 W (Burst)")
-            self._ctgp_ctx.setText("cTGP Target: 80 W (Balanced)")
         self._status_label.setText(
             f"Active: {pp.label_for(profile)}  ·  Changes apply system-wide"
         )
