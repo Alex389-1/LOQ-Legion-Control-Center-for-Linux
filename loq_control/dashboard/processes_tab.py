@@ -25,6 +25,41 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
+_ICON_CACHE: dict[str, QIcon] = {}
+
+
+def get_process_icon(name: str) -> QIcon:
+    """Resolve system icon for process name with caching."""
+    name_lower = name.lower()
+    if name_lower in _ICON_CACHE:
+        return _ICON_CACHE[name_lower]
+
+    mapping = {
+        "brave": "brave-browser",
+        "chrome": "google-chrome",
+        "idea": "intellij-idea-ultimate-edition",
+        "plasmashell": "plasma",
+        "antigravity-ide": "loq-control",
+        "python": "python3",
+        "python3": "python3",
+        "krunner": "krunner",
+        "kwin_wayland": "kwin",
+        "konsole": "utilities-terminal",
+        "bash": "utilities-terminal",
+        "zsh": "utilities-terminal",
+    }
+    icon_name = mapping.get(name_lower, name_lower)
+    icon = QIcon.fromTheme(icon_name)
+
+    if icon.isNull() and icon_name != name_lower:
+        icon = QIcon.fromTheme(name_lower)
+
+    if icon.isNull():
+        icon = QIcon.fromTheme("application-x-executable")
+
+    _ICON_CACHE[name_lower] = icon
+    return icon
+
 
 class ProcessesTab(QWidget):
     """System Task Manager processes tab."""
@@ -122,6 +157,8 @@ class ProcessesTab(QWidget):
         self._table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.setAlternatingRowColors(True)
+        from PySide6.QtCore import QSize
+        self._table.setIconSize(QSize(20, 20))
         self._table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._table.customContextMenuRequested.connect(self._show_context_menu)
         self._table.itemSelectionChanged.connect(self._on_selection_changed)
@@ -214,8 +251,8 @@ class ProcessesTab(QWidget):
 
             self._table.insertRow(row)
 
-            # Name
-            item_name = QTableWidgetItem(proc['name'])
+            # Name with application logo / icon
+            item_name = QTableWidgetItem(get_process_icon(proc['name']), proc['name'])
             item_name.setData(Qt.ItemDataRole.UserRole, proc['pid'])
 
             # PID
